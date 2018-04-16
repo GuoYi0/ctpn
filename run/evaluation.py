@@ -64,8 +64,8 @@ if __name__ == '__main__':
     # GroundTruth文件目录
     gt_path = "E:\\alidata\\[update] ICPR_text_train_part1_20180316\\train_1000\\txt_1000"
     # 输出的预测结果DetectResult文件目录
-    # dr_path = "E:\\ctpn_yi\\data\\results\\gt_txt"
-    dr_path = "E:\\alidata\\[update] ICPR_text_train_part1_20180316\\train_1000\\txt_1000"
+    dr_path = "E:\\ctpn_yi\\data\\results\\gt_txt"
+    # dr_path = "E:\\alidata\\[update] ICPR_text_train_part1_20180316\\train_1000\\txt_1000"
 
     # 所有图片总精度的分子
     total_p = 0

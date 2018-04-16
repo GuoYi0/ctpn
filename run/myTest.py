@@ -14,6 +14,14 @@
 # print(tuple(c))
 # print("in file {}, x2 must be larger than x1 in anchor".format(__file__))
 
-import numpy as np
-a = np.logspace(start=0, stop=16, num=16, base=1.25, endpoint=False)*8
-print(a)
+# import numpy as np
+# a = np.logspace(start=0, stop=16, num=16, base=1.25, endpoint=False)*8
+# print(a)
+# import numpy as np
+# a = np.array([[1,8],[2,6], [0,9]])
+# print(a)
+# b = a[np.argsort(a[:, 0]), :]
+# print(b)
+import os
+print(os.path.splitext("rad.txt"))
+print(round(3.64))

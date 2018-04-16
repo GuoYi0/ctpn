@@ -34,10 +34,10 @@ class TestClass(object):
                 #     continue
                 # 默认用红色线条绘制，可能性最低
                 color = (0, 0, 255)  # 颜色为BGR
-                cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
-                cv2.line(img, (int(box[0]), int(box[1])), (int(box[4]), int(box[5])), color, 2)
-                cv2.line(img, (int(box[6]), int(box[7])), (int(box[2]), int(box[3])), color, 2)
-                cv2.line(img, (int(box[4]), int(box[5])), (int(box[6]), int(box[7])), color, 2)
+                cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, thickness=2)
+                cv2.line(img, (int(box[0]), int(box[1])), (int(box[4]), int(box[5])), color, thickness=2)
+                cv2.line(img, (int(box[6]), int(box[7])), (int(box[2]), int(box[3])), color, thickness=2)
+                cv2.line(img, (int(box[4]), int(box[5])), (int(box[6]), int(box[7])), color, thickness=2)
                 # cv2.putText(img, 'score:{}'.format(box[8]), (int(box[0]), int(box[1])),
                 #             cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
                 x1 = box[0]
@@ -83,7 +83,7 @@ class TestClass(object):
         im_orig = img.astype(np.float32, copy=True)
         im_orig -= self._cfg.TRAIN.PIXEL_MEANS
 
-        # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，该片段为映射到最原始图片的坐标
+        # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，该片段为映射回缩放以后的图片坐标
         scores, boxes = TestClass.test_ctpn(sess, net, im_orig, scale)
 
         # 此处调用了一个文本检测器

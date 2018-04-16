@@ -24,8 +24,8 @@ ctpn_new/dataset 目录下的所有文件将被git忽略，以提高push速度�
 sys.path.append(os.getcwd())
 image_dir = "E:\\ctpn_yi\\dataset\\rawImage"  # 原始训练数据集图像目录
 txt_dir = "E:\\ctpn_yi\\dataset\\rawTxt"   # 原始训练数据集txt文本目录
-txtfortrain_dir = "../dataset/for_train/Imageinfo"  # 保存每张图片对应的txt文本的目录
-imagefortain_dir = "../dataset/for_train/Imageset"  # 保存图片文件的目录
+txtfortrain_dir = "E:\\ctpn_yi\\dataset/for_train/Imageinfo"  # 保存每张图片对应的txt文本的目录
+imagefortain_dir = "E:\\ctpn_yi\\dataset/for_train/Imageset"  # 保存图片文件的目录
 
 
 def rawdata2traindata(config):
@@ -38,7 +38,7 @@ def rawdata2traindata(config):
 def imagedata_process(config):
     # 下面两行，用于保存每张图片的信息
     filename = "train_set.txt"
-    pathdir = "../dataset/for_train"
+    pathdir = "E:\\ctpn_yi\\dataset/for_train"
     # 判断train_set.txt是否存在，存在则删除
     if os.path.exists(pathdir + '/' + filename):
         os.remove(pathdir + '/' + filename)
@@ -62,9 +62,9 @@ def imagedata_process(config):
         # 缩放比定义为：变形以后的图片尺寸/原图像尺寸
         minlength = min(img_width, img_height)
         maxlength = max(img_width, img_height)
-        scale = 600.0/float(minlength)
-        if maxlength*scale > 1000:
-            scale = 1000.0/float(maxlength)
+        scale = config.TRAIN.SCALE/float(minlength)
+        if maxlength*scale > 1200:
+            scale = 1200.0/float(maxlength)
 
         width = int(img_width * scale)  # 缩放以后的宽
         height = int(img_height * scale)  # 缩放以后的高
@@ -103,14 +103,14 @@ def txtdata_process(imagename, height, width, scale, resizedImage):
         # 对原始数据按顺时针排序
         # tmp1 = clockwise_data(tmp[0:8]).reshape(-1)
 
-        x0 = int(float(tmp1[0]) * scale)
-        y0 = int(float(tmp1[1]) * scale)
-        x1 = int(float(tmp1[2]) * scale)
-        y1 = int(float(tmp1[3]) * scale)
-        x2 = int(float(tmp1[4]) * scale)
-        y2 = int(float(tmp1[5]) * scale)
-        x3 = int(float(tmp1[6]) * scale)
-        y3 = int(float(tmp1[7]) * scale)
+        x0 = round(float(tmp1[0]) * scale)
+        y0 = round(float(tmp1[1]) * scale)
+        x1 = round(float(tmp1[2]) * scale)
+        y1 = round(float(tmp1[3]) * scale)
+        x2 = round(float(tmp1[4]) * scale)
+        y2 = round(float(tmp1[5]) * scale)
+        x3 = round(float(tmp1[6]) * scale)
+        y3 = round(float(tmp1[7]) * scale)
 
         if testGT(x0, y0, x1, y1, x2, y2, x3, y3, height, width):
             fortraintxtfile.write(str(x0) + "," + str(y0) + "," + str(x1) + "," + str(y1) + ","
@@ -142,11 +142,8 @@ def huizhi(img, x0, y0, x1, y1, x2, y2, x3, y3):
 
 
 def testGT(x0, y0, x1, y1, x2, y2, x3, y3, height, width):
-    """
-    判断GT是否在图像范围内且xmin<xmax,ymin<ymax
-    """
-    width += 5
-    height += 5
+    width += 10
+    height += 10
     if x0 < 0 or x0 > width:
         return False
     if x1 < 0 or x1 > width:

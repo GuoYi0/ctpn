@@ -23,9 +23,10 @@ def scale_anchor(anchor, h, w):
 
 
 def generate_anchors(cfg):
-    # heights = [11, 16, 23, 33, 48, 68, 97, 139, 198, 283]
-    heights = np.logspace(start=0, stop=cfg.COMMON.NUM_ANCHORS, num=cfg.COMMON.NUM_ANCHORS,
-                          base=cfg.COMMON.INCREASE_BASE, endpoint=False) * cfg.COMMON.MIN_ANCHOR_HEIGHT
+    heights = [8, 12, 17, 24, 34, 48, 69, 98, 140, 200]
+    # heights = np.logspace(start=0, stop=cfg.COMMON.NUM_ANCHORS, num=cfg.COMMON.NUM_ANCHORS,
+    #                       base=cfg.COMMON.INCREASE_BASE, endpoint=False) * cfg.COMMON.MIN_ANCHOR_HEIGHT
+    # heights = [4, 5, 6, 8, 11, 14, 19, 24, 31, 41, 53, 69, 90, 117, 152, 197, 256]
 
     widths = 16
     sizes = []

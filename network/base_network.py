@@ -298,7 +298,7 @@ class base_network(object):
 
         # 把正则化项取出来，以列表形式返回
         regularization_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        total_loss = tf.add_n(regularization_losses)*80.0 + model_loss
+        total_loss = tf.add_n(regularization_losses)*40.0 + model_loss
 
         # 返回总损失（分类的交叉熵+盒子回归+正则化项）， 模型损失（分类的交叉熵+盒子回归）， 分类交叉熵， 盒子回归损失
         return total_loss, model_loss, rpn_cross_entropy, rpn_loss_box

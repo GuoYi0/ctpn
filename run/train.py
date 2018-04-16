@@ -4,6 +4,10 @@ from lib.load_config import load_config
 from data_process.roidb import get_training_roidb
 from lib import get_path
 
+import sys
+import os
+sys.path.append(os.getcwd())
+
 if __name__ == '__main__':
     # print(os.getcwd())
     cfg = load_config()
