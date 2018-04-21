@@ -7,3 +7,4 @@ analysis/tmp/*
 analysis/.ipynb_checkpoints/*
 analysis/features.pkl
 checkpoints/*
+run/myTest.py
