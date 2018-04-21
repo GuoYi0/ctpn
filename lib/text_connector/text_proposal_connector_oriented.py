@@ -52,7 +52,7 @@ class TextProposalConnector:
             x1=np.max(text_line_boxes[:, 2])  # 文本行x坐标最大值
 
             # 返回第一个片段的宽度的一半
-            offset=(text_line_boxes[0, 2]-text_line_boxes[0, 0])*0.5
+            offset = (text_line_boxes[0, 2]-text_line_boxes[0, 0])*0.5
 
             # 以全部小框的左上角这个点去拟合一条直线，然后计算一下文本行x坐标的极左极右对应的y坐标
             lt_y, rt_y=TextProposalConnector.fit_y(text_line_boxes[:, 0], text_line_boxes[:, 1], x0+offset, x1-offset)

@@ -60,7 +60,8 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, _feat_stride=(1
     scores = scores.reshape((K, A))
 
     # 非极大值抑制，以列表形式输出进行列非极大值抑制后的文本片段以及相应的分数
-    proposals, scores = anchor_nms(height, width, proposals, scores, nms_thresh, positive_thresh)
+    nms_ratio = cfg.TEST.NMS_RATIO
+    proposals, scores = anchor_nms(height, width, proposals, scores, nms_thresh, positive_thresh, nms_ratio)
 
     proposals = np.array(proposals).reshape((-1, 4))
     scores = np.array(scores).reshape((-1, 1))

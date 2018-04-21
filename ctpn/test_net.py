@@ -26,32 +26,38 @@ class TestClass(object):
         # base_name = image_name.split('/')[-1]
         base_name = os.path.basename(image_name)
         b_name, ext = os.path.splitext(base_name)
+        if self._cfg.TEST.CONNECT:
+            with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'w') as f:
+                for box in boxes:
+                    # TODO 下面注释掉的这两行不知是啥意思
+                    # if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3] - box[0]) < 5:
+                    #     continue
+                    # 默认用红色线条绘制，可能性最低
+                    color = (0, 0, 255)  # 颜色为BGR
+                    cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, thickness=2)
+                    cv2.line(img, (int(box[0]), int(box[1])), (int(box[4]), int(box[5])), color, thickness=2)
+                    cv2.line(img, (int(box[6]), int(box[7])), (int(box[2]), int(box[3])), color, thickness=2)
+                    cv2.line(img, (int(box[4]), int(box[5])), (int(box[6]), int(box[7])), color, thickness=2)
+                    # cv2.putText(img, 'score:{}'.format(box[8]), (int(box[0]), int(box[1])),
+                    #             cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
+                    x1 = box[0]
+                    y1 = box[1]
+                    x2 = box[2]
+                    y2 = box[3]
+                    x4 = box[4]
+                    y4 = box[5]
+                    x3 = box[6]
+                    y3 = box[7]
 
-        with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'w') as f:
+                    line = ','.join([str(x1), str(y1), str(x2), str(y2), str(x3), str(y3), str(x4), str(y4)]) + '\n'
+                    f.write(line)
+        else:
+            color = (255, 0, 255)  # 颜色为BGR
             for box in boxes:
-                # TODO 下面注释掉的这两行不知是啥意思
-                # if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3] - box[0]) < 5:
-                #     continue
-                # 默认用红色线条绘制，可能性最低
-                color = (0, 0, 255)  # 颜色为BGR
-                cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, thickness=2)
-                cv2.line(img, (int(box[0]), int(box[1])), (int(box[4]), int(box[5])), color, thickness=2)
-                cv2.line(img, (int(box[6]), int(box[7])), (int(box[2]), int(box[3])), color, thickness=2)
-                cv2.line(img, (int(box[4]), int(box[5])), (int(box[6]), int(box[7])), color, thickness=2)
-                # cv2.putText(img, 'score:{}'.format(box[8]), (int(box[0]), int(box[1])),
-                #             cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
-                x1 = box[0]
-                y1 = box[1]
-                x2 = box[2]
-                y2 = box[3]
-                x4 = box[4]
-                y4 = box[5]
-                x3 = box[6]
-                y3 = box[7]
-
-                line = ','.join([str(x1), str(y1), str(x2), str(y2), str(x3), str(y3), str(x4), str(y4)]) + '\n'
-                f.write(line)
-
+                cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[1])), color, thickness=2)
+                cv2.line(img, (int(box[0]), int(box[1])), (int(box[0]), int(box[3])), color, thickness=2)
+                cv2.line(img, (int(box[2]), int(box[3])), (int(box[2]), int(box[1])), color, thickness=2)
+                cv2.line(img, (int(box[2]), int(box[3])), (int(box[0]), int(box[3])), color, thickness=2)
         cv2.imwrite(os.path.join(self._cfg.TEST.RESULT_DIR_PIC, base_name), img)
 
     # 改变图片的尺寸，被ctpn()调用
@@ -63,6 +69,33 @@ class TestClass(object):
             f = float(max_scale) / max(im.shape[0], im.shape[1])
         return cv2.resize(im, None, None, fx=f, fy=f, interpolation=cv2.INTER_LINEAR), f
 
+    def merge_y_anchor(self, scores, boxes):
+        """
+        该函数把大anchor，根据其在竖直方向的iou，进行合并
+        :param scores: N维向量，对应的分数
+        :param boxes: N×4矩阵，每行为一个已经映射回最初的图片的文字片段坐标
+        :return: 合并以后的anchor和分数
+        """
+        length = len(scores)
+        height = boxes[:, 3] - boxes[:, 1] + 1
+        for i in range(length):
+            if height[i] > self._cfg.TEST.BIG_THRESH and scores[i] > 0:
+                x1 = boxes[i, 0]
+                for j in range(i+1, length):
+                    if height[j] > self._cfg.TEST.BIG_THRESH and scores[j] > 0 and boxes[j, 0]==x1:
+
+                        y0 = max(boxes[i, 1], boxes[j, 1])
+                        y1 = min(boxes[i, 3], boxes[j, 3])
+                        # y方向的IOU
+                        y_iou = (y1 - y0 + 1) / (height[i] + height[j] - (y1 - y0 + 1))
+                        if y_iou > self._cfg.TEST.BIG_IOU:
+                            boxes[i, 1] = min(boxes[i, 1], boxes[j, 1])
+                            boxes[i, 3] = max(boxes[i, 3], boxes[j, 3])
+                            scores[i] = (scores[i]+scores[j])/2
+                            scores[j] = -1.0
+        valid_inds = np.where(scores > 0)[0]
+        return scores[valid_inds], boxes[valid_inds]
+
     # 被test_net()调用
     def ctpn(self, sess, net, image_name):
         """
@@ -71,8 +104,6 @@ class TestClass(object):
         :param image_name: 所要测试的单张图片的目录
         :return:
         """
-
-
         # 读取图片
         image = cv2.imread(image_name)
         # shape = image.shape[:2]  # 获取高，宽
@@ -83,32 +114,35 @@ class TestClass(object):
         im_orig = img.astype(np.float32, copy=True)
         im_orig -= self._cfg.TRAIN.PIXEL_MEANS
 
-        # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，该片段为映射回缩放以后的图片坐标
+        # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，
+        # 该片段为映射回缩放以后的图片坐标，并且已经进行了非极大值抑制
         scores, boxes = TestClass.test_ctpn(sess, net, im_orig, scale)
 
-        # 此处调用了一个文本检测器
-        textdetector = TextDetector(self._cfg)
-        """
-        输入参数分别为：
-        N×4矩阵，每行为一个已经映射回最初的图片的文字片段坐标
-        N维向量，对应的分数
-        两维向量，分别为最原始图片的高宽
-        返回：
-        一个N×9的矩阵，表示N个拼接以后的完整的文本框。
-        每一行，前八个元素一次是左上，右上，左下，右下的坐标，最后一个元素是文本框的分数
-        """
-        # 缩放后的boxes
-        boxes = textdetector.detect(boxes, scores, shape)
+        if self._cfg.TEST.BIG_CONNECT:
+            scores, boxes = self.merge_y_anchor(scores, boxes)
+        if self._cfg.TEST.CONNECT:
+            # 此处调用了一个文本检测器
+            textdetector = TextDetector(self._cfg)
+            """
+            输入参数分别为：
+            N×4矩阵，每行为一个已经映射回最初的图片的文字片段坐标
+            N维向量，对应的分数
+            两维向量，分别为最原始图片的高宽
+            返回：
+            一个N×9的矩阵，表示N个拼接以后的完整的文本框。
+            每一行，前八个元素一次是左上，右上，左下，右下的坐标，最后一个元素是文本框的分数
+            """
+            # 缩放前的boxes
+            boxes = textdetector.detect(boxes, scores, shape)
         boxes[:, 0:8] = boxes[:, 0:8] / scale
         # 在原始图片上画图
-        self.draw_boxes(image, image_name, boxes)
+        #anchor
 
+        self.draw_boxes(image, image_name, boxes)
 
     def test_net(self, graph):
 
         timer = Timer()
-        timer.tic()
-
         if os.path.exists(self._cfg.TEST.RESULT_DIR_TXT):
             shutil.rmtree(self._cfg.TEST.RESULT_DIR_TXT)
         os.makedirs(self._cfg.TEST.RESULT_DIR_TXT)
@@ -121,7 +155,7 @@ class TestClass(object):
         # 创建一个Session
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allocator_type = 'BFC'
-        config.gpu_options.per_process_gpu_memory_fraction = 0.7  # 不能太大，否则报错
+        config.gpu_options.per_process_gpu_memory_fraction = 0.8  # 不能太大，否则报错
 
         sess = tf.Session(config=config, graph=graph)
 
@@ -147,7 +181,9 @@ class TestClass(object):
 
         assert len(im_names) > 0, "Nothing to test"
         i = 0
+        timer.tic()
         for im in im_names:
+
             im_name = os.path.join(self._cfg.TEST.DATA_DIR, im)
             # print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
             # print(('Testing for image {:s}'.format(im_name)))
@@ -161,8 +197,9 @@ class TestClass(object):
                 continue
             i += 1
             if i % 10 == 0:
-                timer.toc()
-                print('Detection took {:.3f}s for 10 pic'.format(timer.total_time))
+                _diff_time = timer.toc(average=False)
+                print('Detection took {:.3f}s for {} pic'.format(_diff_time, i))
+                timer.tic()
 
         # 最后关闭session
         sess.close()

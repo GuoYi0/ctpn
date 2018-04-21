@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import LineString, Polygon
 
 
 def height_normalization():
@@ -19,10 +19,18 @@ def get_box_coordinate(data):
 def get_iou(gt, dr):
     # 对于p是针对预测结果而言的，对每一个预测结果在gt中寻找是否命中
     p = np.zeros(len(dr))
+    p_a = np.zeros(len(dr))
+    w_p_a = np.empty(len(dr), dtype=float)
 
     for i, d1 in enumerate(dr):
         # 将预测结果数组信息进行一层float32格式的转换，并封装成多边形对象
-        dr_bbox = Polygon(get_box_coordinate(d1))
+        coor = get_box_coordinate(d1)
+        dr_bbox = Polygon(coor)
+
+        l1 = LineString([coor[0], coor[1]]).length
+        l2 = LineString([coor[0], coor[3]]).length
+        w_p_a[i] = l1 / l2 if l1 > l2 else l2 / l1
+
 
         # 对GT遍历
         for j, d2 in enumerate(gt):
@@ -41,11 +49,20 @@ def get_iou(gt, dr):
                 # 精度的iou阈值为0.5
                 if iou > 0.5:
                     p[i] = 1
+                    p_a[i] = w_p_a[i]
 
     # 对于是针对gt而言的，对每一个gt在dr中寻找是否命中
     r = np.zeros(len(gt))
+
+    r_a = np.zeros(len(gt))
+    w_r_a = np.empty(len(gt), dtype=float)
     for i, d1 in enumerate(gt):
-        gt_bbox = Polygon(get_box_coordinate(d1))
+        coor = get_box_coordinate(d1)
+        gt_bbox = Polygon(coor)
+
+        l1 = LineString([coor[0], coor[1]]).length
+        l2 = LineString([coor[0], coor[3]]).length
+        w_r_a[i] = l1 / l2 if l1 > l2 else l2 / l1
 
         for j, d2 in enumerate(dr):
             dr_bbox = Polygon(get_box_coordinate(d2))
@@ -57,7 +74,8 @@ def get_iou(gt, dr):
                 # 召回的iou阈值为0.7
                 if iou > 0.7:
                     r[i] = 1
-    return p, r
+                    r_a[i] = w_r_a[i]
+    return p, r, p_a, r_a, w_p_a, w_r_a
 
 
 if __name__ == '__main__':
@@ -75,6 +93,16 @@ if __name__ == '__main__':
     total_p_n = 0
     # 所有图片总召回的分母
     total_r_n = 0
+
+    # 阿里测试
+    # 所有图片总精度的分子
+    total_p_a = 0
+    # 所有图片总召回的分子
+    total_r_a = 0
+    # 所有图片总精度的分母
+    total_p_n_a = 0
+    # 所有图片总召回的分母
+    total_r_n_a = 0
 
     # 读取数据
     dirs = os.listdir(gt_path)
@@ -98,13 +126,18 @@ if __name__ == '__main__':
             # 通过计算iou的方式获得p，r
             # p，r即计算出的单张图片的精度与召回
             # p，r数组中元素均为二值化的0或1，表示是否命中
-            p, r = get_iou(gt_data, dr_data)
+            p, r, p_a, r_a, w_p_a, w_r_a = get_iou(gt_data, dr_data)
 
             # 将单张的结果保存
             total_p += np.sum(p)
             total_p_n += len(p)
             total_r += np.sum(r)
             total_r_n += len(r)
+
+            total_p_a += np.sum(p_a)
+            total_p_n_a += np.sum(w_p_a)
+            total_r_a += np.sum(r_a)
+            total_r_n_a += np.sum(w_r_a)
 
             gt.close()
             dr.close()
@@ -116,6 +149,19 @@ if __name__ == '__main__':
     # 计算f_score
     f_score = 2 * precision * recall / (precision + recall)
 
+    print("业界标准===================================================")
+    print("precision = ", precision)
+    print("recall = ", recall)
+    print("f1_score = ", f_score)
+    print("\n")
+    # 计算总精度
+    precision = total_p_a / total_p_n_a
+    # 计算总召回
+    recall = total_r_a / total_r_n_a
+    # 计算f_score
+    f_score = 2 * precision * recall / (precision + recall)
+
+    print("阿里标准===================================================")
     print("precision = ", precision)
     print("recall = ", recall)
     print("f1_score = ", f_score)

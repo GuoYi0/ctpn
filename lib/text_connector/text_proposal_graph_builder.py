@@ -35,7 +35,7 @@ class TextProposalGraphBuilder:
                 # 若这两个文本片段属于同一文本，则添加进results
                 if self.meet_v_iou(adj_box_index, index):
                     results.append(adj_box_index)
-            if len(results) != 0:
+            if len(results) > 0:
                 return results
         return results
 
@@ -52,7 +52,9 @@ class TextProposalGraphBuilder:
             for adj_box_index in adj_box_indices:
                 if self.meet_v_iou(adj_box_index, index):
                     results.append(adj_box_index)
-            if len(results) != 0:
+
+            # if len(results) != 0:
+            if len(results) > 0:
                 return results
         return results
 
@@ -115,13 +117,32 @@ class TextProposalGraphBuilder:
             if len(successions) == 0:
                 continue
             # 把众多相邻片段中，分数最高的一个作为其相邻片段
-            ind = int(np.argmax(scores[successions]))
+            # TODO 这句话或许需要修正，不仅要以分数优先，还要以y_iou优先
+            # 这里改为了以分数和y_iou的和作为指标
+
+            criteria = scores[successions]+self.y_iou(index, successions)*self._cfg.TEST.RATIO
+
+            ind = int(np.argmax(criteria))
             succession_index = successions[ind]
             # succession_index在index的右边
             if self.is_succession_node(index, succession_index):
                 graph[index, succession_index] = True
         # 该图是一个方阵，(i, j)为True表示i对j右边相邻
         return graph
+
+    def y_iou(self, index, succession):
+        v_iou = np.empty(shape=(len(succession),), dtype=np.float64)
+        h1 = self.heights[index]
+
+        for i, k in enumerate(succession):
+
+            h2 = self.heights[k]
+            y0 = max(self.text_proposals[k][1], self.text_proposals[index][1])
+            y1 = min(self.text_proposals[k][3], self.text_proposals[index][3])
+            # y方向的IOU
+            v_iou[i] = (y1 - y0 + 1) / (h1 + h2 - (y1 - y0))
+
+        return v_iou
 
 
 def graphs_connected(graph):

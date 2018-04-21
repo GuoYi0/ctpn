@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def anchor_nms(height, width, proposals, scores, nms_thresh, fg_thresh):
+def anchor_nms(height, width, proposals, scores, nms_thresh, fg_thresh, nms_ratio):
     """
     对回归修正以后的anchors进行nms
     :param height 特征图的高
@@ -49,7 +49,7 @@ def anchor_nms(height, width, proposals, scores, nms_thresh, fg_thresh):
         # labels[:, i]的类型是数组
 
         box_list, score_list = \
-            col_nms(list(new_proposal[:, i, :]), labels[:, i], list(new_scores[:, i]), nms_thresh)
+            col_nms(list(new_proposal[:, i, :]), labels[:, i], list(new_scores[:, i]), nms_thresh, nms_ratio)
 
         nms_boxes += box_list
         nms_scores += score_list
@@ -57,11 +57,11 @@ def anchor_nms(height, width, proposals, scores, nms_thresh, fg_thresh):
     return nms_boxes, nms_scores
 
 
-def col_nms(boxes, labels, scores, nms_thresh):
+def col_nms(boxes, labels, scores, nms_thresh, nms_ratio):
     """
     对每列用非极大值抑制
     :param boxes: 一个长度为k的列表，列表的每个元素是一个候选框，包含四个坐标的np.array
-    :param labels: 长度为k的对应的标签一维数组
+    :param labels: 长度为k的对应的标签,一维数组
     :param scores: 长度为k的对应的得分列表
     :param nms_thresh: nms阈值
     :return: 两个列表，第一个列表是进行非极大值抑制以后，留下来的候选框的坐标，第二个列表是对应的分数
@@ -69,6 +69,7 @@ def col_nms(boxes, labels, scores, nms_thresh):
     fg_label = np.where(labels == 1)[0]
 
     new_boxes = [boxes[i] for i in fg_label]
+    # new_heights = [abs(_box[3]-_box[1])+1 for _box in new_boxes]
 
     # 取出正例所在的分数
     new_score = [scores[i] for i in fg_label]
@@ -78,7 +79,7 @@ def col_nms(boxes, labels, scores, nms_thresh):
     nms_score = list()
 
     while len(new_boxes) > 0:
-        # max_ind = new_score.index(max(new_score))
+        # 取出得分最大的索引
         max_ind = int(np.argmax(np.array(new_score)))
         # 将得分最大的候选框纳入最终候选框，并从原来的列表中删除
         box = new_boxes.pop(max_ind)
@@ -89,9 +90,12 @@ def col_nms(boxes, labels, scores, nms_thresh):
         if len(new_boxes) > 0:
             delete_index = []  # 容纳准备删除的元素的索引
             length = len(new_score)
+            h_box = abs(box[3]-box[1])+1
             for i in range(length):
                 # 将重叠度较大的非极大值，准备去掉
-                if y_iou(new_boxes[i], box) > nms_thresh:
+                h1 = abs(new_boxes[i][3]-new_boxes[i][1])
+                h_mean = (h_box + h1)/2
+                if y_iou(new_boxes[i], box) > nms_thresh * ((1-nms_ratio)*(h_mean-2)/256+nms_ratio):
                     delete_index.append(i)
 
             scores_temp = [new_score[k] for k in range(length) if k not in delete_index]
