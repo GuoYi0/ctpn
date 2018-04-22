@@ -175,10 +175,10 @@ class base_network(object):
 
     @layer
     def anchor_target_layer(self, input, _feat_stride, name):
-        # input里面装着'rpn_cls_score', 'gt_boxes', 'im_info'
+        # input里面装着'rpn_cls_score', 'gt_boxes', 'im_info', 'hard_pos', 'hard_neg'
         # _feat_stride = [16,]
-        # input的最后一个维度必须是3 ，即'rpn_cls_score', 'gt_boxes', 'im_info'
-        assert len(input) == 3
+        # input的最后一个维度必须是5 ，即'rpn_cls_score', 'gt_boxes', 'im_info', 'hard_pos', 'hard_neg'
+        assert len(input) == 5
 
         with tf.variable_scope(name):
             # 'rpn_cls_score', 'gt_boxes', 'im_info'
@@ -189,19 +189,19 @@ class base_network(object):
             rpn_bbox_targets 是(1, FM的高，FM的宽，20), 最后一个维度中，每四个表示一个anchor的回归 y,h
 
             """
-            # rpn_labels：(1, height, width, 10) height width为feature map对应的宽 高，一个像素只有一个标签
+            # rpn_labels：(1, height, width, 10) height width为feature map对应的宽高
             # rpn_bbox_targets (1, height, width, 20) 标签为1的标签后回归目标
-
-            rpn_labels, rpn_bbox_targets = tf.py_func(anchor_target_layer_py,
-                                                      # input 分别对应 rpn_cls_score gt_boxes im_info
-                                                      [input[0], input[1], input[2], _feat_stride],
-                                                      [tf.float32, tf.float32])
+            # anchors: (1, height, width, 10)所有的anchors
+            rpn_labels, rpn_bbox_targets, anchors = tf.py_func(
+                anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
+                [tf.float32, tf.float32, tf.int32])
 
             rpn_labels = tf.convert_to_tensor(tf.cast(rpn_labels, tf.int32), name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
+            anchors = tf.convert_to_tensor(anchors, name="anchors")
 
             # TODO 这里暂时只需要返回标签和anchor回归目标就可以了，后续会增加side refinement
-            return rpn_labels, rpn_bbox_targets
+            return rpn_labels, rpn_bbox_targets, anchors
 
     @layer
     def proposal_layer(self, input, _feat_stride,  name):
@@ -248,6 +248,36 @@ class base_network(object):
             print(list(self.layers.keys()))
             raise KeyError('Unknown layer name fed: %s' % layer)
         return layer
+
+
+
+    def get_hard(self):
+
+        real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
+        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM])
+        # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
+        pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
+        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.float32, tf.float32])
+
+
+
+        # length = real_tag.shape()[0]
+        #
+        # # 这里的reshape全部是?啊，length也是?啊
+        # # assert length == pred_prob.get_shape()[0] == anchors.get_shape()[0]
+        # hard_pos = []
+        # hard_neg = []
+        #
+        # for i in range(length):
+        #     # 真实的标签是文字，其预测的文字概率却小于0.5，就是hard positive
+        #     if real_tag[i] == 1 and pred_prob[i, 1] < 0.5:
+        #         hard_pos.append(anchors[i])
+        #     # 真实的标签是背景，其预测的背景概率却小于0.5，就是hard negative
+        #     elif real_tag[i] == 0 and pred_prob[i, 0] < 0.5:
+        #         hard_neg.append(anchors[i])
+        hard_neg = tf.convert_to_tensor(hard_neg)
+        hard_pos = tf.convert_to_tensor(hard_pos)
+        return hard_neg, hard_pos
 
     def build_loss(self):
         # 这一步输出的只是分数，没有softmax， 形状为(HxWxA, 2)
@@ -318,3 +348,21 @@ class base_network(object):
         return tf.reshape(tf.nn.softmax(tf.reshape(input, [-1, input_shape[3]])),
                           [-1, input_shape[1], input_shape[2], input_shape[3]], name=name)
 
+
+def get_hard_py(real_tag, anchors, pred_prob):
+    length = real_tag.shape[0]
+    # 这里的reshape全部是?啊，length也是?啊
+    assert length == pred_prob.shape[0] == anchors.shape[0]
+    hard_pos = []
+    hard_neg = []
+
+    for i in range(length):
+        # 真实的标签是文字，其预测的文字概率却小于0.5，就是hard positive
+        if real_tag[i] == 1 and pred_prob[i, 1] < 0.5:
+            hard_pos.append(anchors[i])
+        # 真实的标签是背景，其预测的背景概率却小于0.5，就是hard negative
+        elif real_tag[i] == 0 and pred_prob[i, 0] < 0.5:
+            hard_neg.append(anchors[i])
+    neg = np.array(hard_neg).astype(dtype=np.float32, copy=False)
+    pos = np.array(hard_pos).astype(dtype=np.float32, copy=False)
+    return neg, pos

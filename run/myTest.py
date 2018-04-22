@@ -57,6 +57,34 @@
 # sess.run(update)
 # print(sess.run(w))
 # sess.close()
+#
+# for i in range(4, 8):
+#     print(i)
+# import tensorflow as tf
+# a = tf.constant(value=1.0, shape=(2, 3))
+# with tf.Session() as sess:
+#     y = sess.run(a)
+#     print(y)
+#
+#     print(type(y))
+# import numpy as np
+# arr = np.array([1, 2, 3, 4])
+# arr2 = np.array([7,8,9])
+# # inds = np.where(arr == 1)[0]
+# # print(inds)
+# # print(type(inds))
+# # np.random.shuffle(arr)
+# # print(arr)
+# # print(arr[2:])
+# r = np.random.choice(arr, size=2, replace=False)
+# print(type(r))
+# # print(np.concatenate((arr, arr2)))
+# import tensorflow as tf
+# a = tf.placeholder(dtype=tf.float32, shape=[None])
+# for
+import numpy as np
+yi = list()
+guo = np.array(yi).reshape((-1, 4))
+print(guo.shape)
 
-for i in range(4, 8):
-    print(i)
+

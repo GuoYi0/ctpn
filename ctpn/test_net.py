@@ -82,7 +82,7 @@ class TestClass(object):
             if height[i] > self._cfg.TEST.BIG_THRESH and scores[i] > 0:
                 x1 = boxes[i, 0]
                 for j in range(i+1, length):
-                    if height[j] > self._cfg.TEST.BIG_THRESH and scores[j] > 0 and boxes[j, 0]==x1:
+                    if height[j] > self._cfg.TEST.BIG_THRESH and scores[j] > 0 and abs(boxes[j, 0]-x1) < 2:
 
                         y0 = max(boxes[i, 1], boxes[j, 1])
                         y1 = min(boxes[i, 3], boxes[j, 3])

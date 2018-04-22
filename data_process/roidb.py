@@ -87,6 +87,8 @@ class roidb(object):
         ”height“:高
         "width"：宽
         ”image_path“：图片路径
+        'hard_neg': 困难负例
+        'hard_pos': 困难正例
         """
 
     def _process_each_image_gt(self, index, image_name):
@@ -121,4 +123,6 @@ class roidb(object):
             'width': single_img_info[1],
             'image_scale': single_img_info[3],
             'gt_boxes': boxes,
+            'hard_neg': list(),
+            'hard_pos': list()
         }

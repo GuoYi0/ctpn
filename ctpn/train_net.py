@@ -10,7 +10,7 @@ class SolverWrapper(object):
         self._cfg = cfg
         self.net = network
         # 所有图片的imdb列表
-        self.roidb = roidb  # 所有图片的GT列表，每个元素是一个字典，字典里面包含列所有的box
+        # self.roidb = roidb  # 所有图片的列表，每个元素是一个字典，字典里面包含列所有的box
         # self.output_dir = output_dir
         self.pretrained_model = pretrain_model
         self.checkpoints_dir = checkpoints_dir
@@ -19,6 +19,7 @@ class SolverWrapper(object):
 
         # For checkpoint
         self.saver = tf.train.Saver(max_to_keep=10, write_version=tf.train.SaverDef.V2)
+        self.data_layer = get_data_layer(roidb, self._cfg)
 
     def snapshot(self, sess, iter):
 
@@ -31,10 +32,10 @@ class SolverWrapper(object):
     def train_model(self, sess):
         # 根据全部的roidb，获得一个data_layer对象
         # data_layer对象是一批一批地传递处理好了的数据
-        data_layer = get_data_layer(self.roidb, self._cfg)
 
         total_loss, model_loss, rpn_cross_entropy, rpn_loss_box = self.net.build_loss()
-
+        # 返回两个列表，列表的每个元素都是一个hard box tensor
+        hard_neg, hard_pos = self.net.get_hard()
         # cfg.TRAIN.LEARNING_RATE = 0.00001
         lr = tf.Variable(self._cfg.TRAIN.LEARNING_RATE, trainable=False)
         # TRAIN.SOLVER = 'Momentum'
@@ -90,8 +91,7 @@ class SolverWrapper(object):
         timer = Timer()
 
         loss_list = [total_loss, model_loss, rpn_cross_entropy, rpn_loss_box]
-        train_list = [train_op]
-
+        train_list = [hard_neg, hard_pos, train_op]
         for iter in range(restore_iter, self.max_iter):
             timer.tic()
             # learning rate
@@ -99,7 +99,7 @@ class SolverWrapper(object):
                 sess.run(tf.assign(lr, lr.eval() * self._cfg.TRAIN.GAMMA))
                 print("learning rate at step {} is {}".format(iter, lr))
 
-            blobs = data_layer.forward()
+            blobs = self.data_layer.forward()
             gt_boxes = blobs['gt_boxes']
 
             if not gt_boxes.shape[0] > 0:
@@ -112,12 +112,19 @@ class SolverWrapper(object):
                 self.net.im_info: blobs['im_info'],  # 一个三维向量，包含高，宽，缩放比例
                 self.net.keep_prob: 0.5,
                 self.net.gt_boxes: gt_boxes,  # GT_boxes信息，N×8矩阵，每一行为一个gt_box
+                self.net.hard_neg: blobs['hard_neg'],
+                self.net.hard_pos: blobs['hard_pos']
             }
             try:
-                _ = sess.run(fetches=train_list, feed_dict=feed_dict)
+                hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
+                # 把难以区分的正负例添加进去
+                # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象
+                self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+
             except NoPositiveError:
                 print("warning: abandon a picture named {}".format(blobs['im_name']))
-            except :
+            # except:
+            #     print("pic {} may has problem".format(blobs['im_name']))
                 continue
 
             _diff_time = timer.toc(average=False)

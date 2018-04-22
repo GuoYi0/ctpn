@@ -25,17 +25,24 @@ class InputLayer(object):
     def _shuffle_roidb_inds(self):
         """Randomly permute the training roidb."""
         self._perm = np.random.permutation(np.arange(len(self._roidb)))
-        self._cur = 0
+        self._cur = -self._cfg.TRAIN.IMS_BATCH_SIZE
 
     def _get_next_minibatch_inds(self):
         """Return the roidb indices for the next minibatch."""
         cfg = self._cfg
         if self._cur + cfg.TRAIN.IMS_BATCH_SIZE >= len(self._roidb):
             self._shuffle_roidb_inds()
-
-        db_inds = self._perm[self._cur:self._cur + cfg.TRAIN.IMS_BATCH_SIZE]
+        # 先将指示剂后移一位，再返回去
         self._cur += cfg.TRAIN.IMS_BATCH_SIZE
+        db_inds = self._perm[self._cur:self._cur + cfg.TRAIN.IMS_BATCH_SIZE]
         return db_inds
+
+    def put_hard(self, hard_pos, hard_neg):
+        self._roidb[self._cur]['hard_pos'].clear()
+        self._roidb[self._cur]['hard_pos'].extend(hard_pos)
+        self._roidb[self._cur]['hard_neg'].clear()
+        self._roidb[self._cur]['hard_neg'].extend(hard_neg)
+
 
     def _get_next_minibatch(self):
         """Return the blobs to be used for the next minibatch.
@@ -58,7 +65,9 @@ class InputLayer(object):
                        # im_info须是一个包含三个元素的向量，分别代表图片的高，宽，缩放比
                        'im_info': np.array([minibatch_db[0]['height'],
                                             minibatch_db[0]['width'], minibatch_db[0]["image_scale"]]),
-                       'im_name': os.path.basename(minibatch_db[0]['image_name'])
+                       'im_name': os.path.basename(minibatch_db[0]['image_name']),
+                       'hard_neg': np.array(minibatch_db[0]['hard_neg']).reshape((-1, 4)),
+                       'hard_pos': np.array(minibatch_db[0]['hard_pos']).reshape((-1, 4))
                        }
         return single_blob
 

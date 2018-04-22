@@ -11,13 +11,16 @@ class train_network(bn):
         self.im_info = tf.placeholder(tf.float32, shape=(3,), name='im_info')
         # GT_boxes信息，N×8矩阵，每一行为一个gt_box，分别代表x1,y1,x2,y2,x3,y3,x4,y4,依次为左上，右上，右下，左下
         self.gt_boxes = tf.placeholder(tf.float32, shape=[None, 8], name='gt_boxes')
+        self.hard_neg = tf.placeholder(tf.float32, shape=[None, 4], name='hard_neg')
+        self.hard_pos = tf.placeholder(tf.float32, shape=[None, 4], name='hard_pos')
         # dropout以后保留的概率
         self.keep_prob = tf.placeholder(tf.float32)
         self.setup()
 
     def setup(self):
         self.inputs = []
-        self.layers = dict({'data': self.data, 'im_info': self.im_info, 'gt_boxes': self.gt_boxes})
+        self.layers = dict({'data': self.data, 'im_info': self.im_info,
+                            'gt_boxes': self.gt_boxes, 'hard_neg': self.hard_neg, 'hard_pos': self.hard_pos})
         _feat_stride = [16, ]
 
         # padding本来是“VALID”，我把下面的padding全部改为了“SAME”， 以充分检测
@@ -65,10 +68,12 @@ class train_network(bn):
         y的回归 = （GT的y-anchor的y）/anchor的高
         高的回归 = log(GT的高 / anchor的高)
         """
-        # 将rpn_cls_score gt_boxes im_info 装入缓存
-        # 经过这步之后，rpn_labels, rpn_bbox_targets将被得出，被存到self.layers['rpn-data']中，将在build loss阶段被取出加入到损失函数中
+        # 将rpn_cls_score gt_boxes im_info,'hard_pos', 'hard_neg' 装入缓存
+        # 经过这步之后，rpn_labels, rpn_bbox_targets, all_anchors将被得出，被存到self.layers['rpn-data']中，
+        # 将在build loss阶段被取出加入到损失函数中
         # rpn_labels将被用来和预测值进行比较，具体为下一步softmax得出的rpn_cls_score_reshape
-        (self.feed('rpn_cls_score', 'gt_boxes', 'im_info')
+        # 丢进去的'rpn_cls_score'只是取它的shape，没有取其值，实际上这句话只是根据gt和im_info来得到anchor及其标签和回归
+        (self.feed('rpn_cls_score', 'gt_boxes', 'im_info', 'hard_pos', 'hard_neg')
              .anchor_target_layer(_feat_stride, name='rpn-data'))
 
         # shape is (1, H, W, Ax2) -> (1, H, WxA, 2)
