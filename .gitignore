@@ -1,0 +1,10 @@
+ctpn_tensorflow/*
+dataset/*
+data/*
+.idea/*
+*/**/__pycache__/*.pyc
+analysis/tmp/*
+analysis/.ipynb_checkpoints/*
+analysis/features.pkl
+checkpoints/*
+run/myTest.py
