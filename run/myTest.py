@@ -82,9 +82,22 @@
 # import tensorflow as tf
 # a = tf.placeholder(dtype=tf.float32, shape=[None])
 # for
-import numpy as np
-yi = list()
-guo = np.array(yi).reshape((-1, 4))
-print(guo.shape)
+# import numpy as np
+#
+# guo = np.array([]).reshape((-1, 4))
+# print(guo.shape)
 
+import cv2
+pic1 = "E:\\ctpn_yi\\dataset\\for_train\\Imageset\T1GBGGXnpiXXbSZloW_024432.jpg.jpg"
+pic2 = "E:\\ctpn_yi\\dataset\\for_train\\Imageset\T1mt7zFXXcXXXXXXXX_!!2-item_pic.png.jpg"
+pic3 = "E:\\ctpn_yi\\dataset\\for_train\\Imageset\T14uwuXeNgXXXXXXXX_!!0-item_pic.jpg.jpg"
+pic4 = "E:\\ctpn_yi\\dataset\\for_train\\Imageset\TB2Vx1fcjgy_uJjSZKbXXXXkXXa_!!2011471547.jpg.jpg"
+pic_path = open("E:\ctpn_yi\dataset\\for_train\\train_set.txt", "r")
+path = pic_path.readlines()
+# for p in path:
+#     p = "E:\\ctpn_yi\\dataset\\for_train\\Imageset\\" + p.strip().split(",")[0]
+#     print(p)
+pic = cv2.imread(r"E:\ctpn_yi\dataset\\for_train/Imageset\TB2JfPHosjI8KJjSsppXXXbyVXa_!!1099169867.jpg.jpg")
+cv2.imshow("yi", pic)
+cv2.waitKey()
 

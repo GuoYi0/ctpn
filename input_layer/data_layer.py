@@ -38,10 +38,14 @@ class InputLayer(object):
         return db_inds
 
     def put_hard(self, hard_pos, hard_neg):
+        """
+        :param hard_pos: 一个多行四列的数组，
+        :param hard_neg: 一个多行四列的数组，
+        """
         self._roidb[self._cur]['hard_pos'].clear()
-        self._roidb[self._cur]['hard_pos'].extend(hard_pos)
+        self._roidb[self._cur]['hard_pos'].append(hard_pos)
         self._roidb[self._cur]['hard_neg'].clear()
-        self._roidb[self._cur]['hard_neg'].extend(hard_neg)
+        self._roidb[self._cur]['hard_neg'].append(hard_neg)
 
 
     def _get_next_minibatch(self):
@@ -52,12 +56,21 @@ class InputLayer(object):
         """
         db_inds = self._get_next_minibatch_inds()
         minibatch_db = [self._roidb[i] for i in db_inds]
-
+        print(minibatch_db[0]['image_path'])
         im_blob = cv2.imread(minibatch_db[0]['image_path'])
         # 去均值化
         im_blob = im_blob.astype(np.float32)
         im_blob -= self._cfg.TRAIN.PIXEL_MEANS
         im_blob = im_blob[np.newaxis, :]
+        if len(minibatch_db[0]['hard_neg']) == 0:
+            hard_neg = np.array([]).reshape((-1, 4))
+        else:
+            hard_neg = minibatch_db[0]['hard_neg'][0]
+
+        if len(minibatch_db[0]['hard_pos']) == 0:
+            hard_pos = np.array([]).reshape((-1, 4))
+        else:
+            hard_pos = minibatch_db[0]['hard_pos'][0]
 
         single_blob = {'data': im_blob,
                        # ”gt_boxes"须是一个N行4列的矩阵，每一行代表一个GT
@@ -66,8 +79,8 @@ class InputLayer(object):
                        'im_info': np.array([minibatch_db[0]['height'],
                                             minibatch_db[0]['width'], minibatch_db[0]["image_scale"]]),
                        'im_name': os.path.basename(minibatch_db[0]['image_name']),
-                       'hard_neg': np.array(minibatch_db[0]['hard_neg']).reshape((-1, 4)),
-                       'hard_pos': np.array(minibatch_db[0]['hard_pos']).reshape((-1, 4))
+                       'hard_neg': hard_neg,
+                       'hard_pos': hard_pos
                        }
         return single_blob
 
