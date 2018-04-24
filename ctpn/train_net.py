@@ -78,6 +78,7 @@ class SolverWrapper(object):
         # resuming a trainer
         if self._restore:  # restore为True表示训练过程中可能死机了， 现在重新启动训练
             try:
+                print(self.checkpoints_dir)
                 ckpt = tf.train.get_checkpoint_state(self.checkpoints_dir)
                 print('Restoring from {}...'.format(ckpt.model_checkpoint_path), end=' ')
                 self.saver.restore(sess, ckpt.model_checkpoint_path)
@@ -116,18 +117,20 @@ class SolverWrapper(object):
                 self.net.hard_neg: blobs['hard_neg'],
                 self.net.hard_pos: blobs['hard_pos']
             }
-            try:
-                hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
-                # 把难以区分的正负例添加进去
-                # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象，其实是一个多行四列的数组
-                self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
-
-            except NoPositiveError:
-                print("warning: abandon a picture named {}".format(blobs['im_name']))
-            except:
-                print("pic {} may has problem".format(blobs['im_name']))
-                continue
-
+            hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
+            self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+            # try:
+            #     hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
+            #     # 把难以区分的正负例添加进去
+            #     # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象，其实是一个多行四列的数组
+            #     self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+            #
+            # except NoPositiveError:
+            #     print("warning: abandon a picture named {}".format(blobs['im_name']))
+            # except:
+            #     print("pic {} may has problem".format(blobs['im_name']))
+            #     continue
+            #
             _diff_time = timer.toc(average=False)
 
             if iter % self._cfg.TRAIN.DISPLAY == 0:

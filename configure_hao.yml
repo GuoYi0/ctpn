@@ -1,5 +1,5 @@
 COMMON:
-  CKPT: E:/ctpn_yi/checkpoints/checkpoint
+  CKPT: checkpoints/checkpoint
   NUM_ANCHORS: 16
   INCREASE_BASE: 1.28
   MIN_ANCHOR_HEIGHT: 5
@@ -9,8 +9,8 @@ PREPARE:
 TRAIN:
   USE_FLIPPED: False
   USE_CACHED: True
-  CACHE_PATH: E:\ctpn_yi\dataset\cache
-  TRAIN_PATH: E:\ctpn_yi\dataset\for_train
+  CACHE_PATH: dataset/cache
+  TRAIN_PATH: dataset/for_train
   COORDINATE_NUM: 4
   IMS_BATCH_SIZE: 1  # 每轮图片的数目
   PIXEL_MEANS: [102.9801, 115.9465, 122.7717]

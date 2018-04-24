@@ -1,5 +1,6 @@
 import numpy as np
 from shapely.geometry import Polygon
+
 """
 这里计算IOU的方法，是用交集的面积，除以（anchor的宽度乘以高的并）
 这里，高的并的计算，是以上边和下边为依据的
@@ -13,7 +14,7 @@ def get_y(x1, y1, x2, y2, x, min_val=True):
             return min(y1, y2)
         else:
             return max(y1, y2)
-    return (y2-y1)*(x-x1)/(x2-x1)+y1
+    return (y2 - y1) * (x - x1) / (x2 - x1) + y1
 
 
 def _next_ind(ind):
@@ -96,7 +97,7 @@ def bbox_overlaps(anchors, gt_boxes):
         assert anchors[n, 2] >= anchors[n, 0], "in file {}, x2 must be larger than x1 in anchor".format(__file__)
         # anchor_width = anchors[n, 2] - anchors[n, 0] + 1  # anchor的宽度
         anchor_width = anchors[n, 2] - anchors[n, 0]  # 调库以后，这里就不能加1了。anchor的宽度
-        anchor_x = (anchors[n, 2] + anchors[n, 0])/2.0  # anchor的中心坐标
+        anchor_x = (anchors[n, 2] + anchors[n, 0]) / 2.0  # anchor的中心坐标
         an_coords = ((anchors[n, 0], anchors[n, 1]),
                      (anchors[n, 2], anchors[n, 1]),
                      (anchors[n, 2], anchors[n, 3]),
@@ -104,21 +105,28 @@ def bbox_overlaps(anchors, gt_boxes):
         an_box = Polygon(shell=an_coords)
 
         for k in range(K):  # 对gt_box的遍历
-            if an_box.intersects(gt_list[k]):
-                cross_area = gt_list[k].intersection(an_box).area
+            try:
+                if an_box.intersects(gt_list[k]):
+                    cross_area = gt_list[k].intersection(an_box).area
                 # gt_y1 = get_y(gt_boxes[k, 0], gt_boxes[k, 1], gt_boxes[k, 2], gt_boxes[k, 3], anchor_x)
                 # gt_y2 = get_y(gt_boxes[k, 4], gt_boxes[k, 5], gt_boxes[k, 6], gt_boxes[k, 7], anchor_x)
 
-                gt_y1, gt_y2 = get_box_y(gt_boxes[k, 0], gt_boxes[k, 1], gt_boxes[k, 2], gt_boxes[k, 3],
+                    gt_y1, gt_y2 = get_box_y(gt_boxes[k, 0], gt_boxes[k, 1], gt_boxes[k, 2], gt_boxes[k, 3],
                                          gt_boxes[k, 4], gt_boxes[k, 5], gt_boxes[k, 6], gt_boxes[k, 7], anchor_x)
-                ymin = min([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
-                ymax = max([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
+                    ymin = min([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
+                    ymax = max([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
                 # uh = ymax - ymin + 1
-                uh = ymax - ymin
-                overlaps[n, k] = cross_area / (uh*anchor_width)
+                    uh = ymax - ymin
+                    overlaps[n, k] = cross_area / (uh * anchor_width)
+            except:
+                print(an_coords, ((gt_boxes[k, 0], gt_boxes[k, 1]),
+                     (gt_boxes[k, 2], gt_boxes[k, 3]),
+                     (gt_boxes[k, 4], gt_boxes[k, 5]),
+                     (gt_boxes[k, 6], gt_boxes[k, 7]),))
     return overlaps
 
 
 if __name__ == "__main__":
     from IPython import embed
+
     embed()

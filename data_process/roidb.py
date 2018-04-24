@@ -1,5 +1,6 @@
-import pickle
 import os
+import pickle
+
 import numpy as np
 
 
@@ -53,7 +54,7 @@ class roidb(object):
                 image_index.append(line[0])  # 图片名
                 # 这里必须是高在前，宽在后
                 height = int(line[1])  # 图片的高
-                wight = int(line[2])   # 图片的宽
+                wight = int(line[2])  # 图片的宽
                 channal = int(line[3])  # 图片的通道数
                 scale = float(line[4])  # 图片的缩放比
                 image_info.append(list([height, wight, channal, scale]))

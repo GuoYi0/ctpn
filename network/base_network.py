@@ -194,7 +194,7 @@ class base_network(object):
             # anchors: (1, height, width, 10)所有的anchors
             rpn_labels, rpn_bbox_targets, anchors = tf.py_func(
                 anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
-                [tf.float32, tf.float32, tf.int32])
+                [tf.float32, tf.float32, tf.int64])
 
             rpn_labels = tf.convert_to_tensor(tf.cast(rpn_labels, tf.int32), name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
