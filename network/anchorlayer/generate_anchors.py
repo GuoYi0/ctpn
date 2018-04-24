@@ -28,7 +28,7 @@ def generate_anchors(cfg):
     #                       base=cfg.COMMON.INCREASE_BASE, endpoint=False) * cfg.COMMON.MIN_ANCHOR_HEIGHT
     #
     # heights = [4, 5, 6, 8, 11, 14, 19, 24, 31, 41, 53, 69, 90, 117, 152, 197, 256]
-    heights = [2, 3, 4, 6, 8, 11, 15, 20, 27, 36, 49, 66, 89, 121, 162, 220] # siyue
+    heights = [2, 3, 4, 6, 8, 11, 15, 20, 27, 36, 49, 66, 89, 121, 162, 220]  # siyue
     # heights = [4, 5, 6, 8, 11, 14, 19, 24, 31, 41, 53, 69, 90, 117, 152, 197, 256]
     widths = 16
     sizes = []

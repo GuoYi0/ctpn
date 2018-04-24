@@ -3,7 +3,7 @@ import os
 from lib import Timer
 from input_layer import get_data_layer
 from exceptions import NoPositiveError
-
+from shapely import *
 
 class SolverWrapper(object):
     def __init__(self, cfg, network, roidb, checkpoints_dir, max_iter, pretrain_model, restore):
@@ -34,7 +34,7 @@ class SolverWrapper(object):
         # data_layer对象是一批一批地传递处理好了的数据
 
         total_loss, model_loss, rpn_cross_entropy, rpn_loss_box = self.net.build_loss()
-        # 返回两个列表，列表的每个元素都是一个hard box tensor
+        # 返回两个tensor数组，tensor数组的每行都是一个hard box
         hard_neg, hard_pos = self.net.get_hard()
         # cfg.TRAIN.LEARNING_RATE = 0.00001
         lr = tf.Variable(self._cfg.TRAIN.LEARNING_RATE, trainable=False)
@@ -106,7 +106,8 @@ class SolverWrapper(object):
                 print("warning: abandon a picture named {}, because it has "
                       "no gt_boxes".format(blobs['im_name']))
                 continue
-
+            print("===================", blobs['hard_neg'], blobs['hard_neg'].shape)
+            print("++++++++++++++++++++", blobs['hard_pos'], blobs['hard_pos'].shape)
             feed_dict = {
                 self.net.data: blobs['data'],  # 一个形状为[批数，宽，高，通道数]的源图片，命名为“data”
                 self.net.im_info: blobs['im_info'],  # 一个三维向量，包含高，宽，缩放比例
@@ -118,13 +119,13 @@ class SolverWrapper(object):
             try:
                 hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
                 # 把难以区分的正负例添加进去
-                # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象
+                # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象，其实是一个多行四列的数组
                 self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
 
             except NoPositiveError:
                 print("warning: abandon a picture named {}".format(blobs['im_name']))
-            # except:
-            #     print("pic {} may has problem".format(blobs['im_name']))
+            except:
+                print("pic {} may has problem".format(blobs['im_name']))
                 continue
 
             _diff_time = timer.toc(average=False)
@@ -141,7 +142,7 @@ class SolverWrapper(object):
             if (iter + 1) % self._cfg.TRAIN.SNAPSHOT_ITERS == 0:  # 每一千次保存一下ckeckpoints
                 self.snapshot(sess, iter)
         # for循環結束以後，記錄下最後一次
-        self.snapshot(sess, self.max_iter - 1)
+        # self.snapshot(sess, self.max_iter - 1)
 
 
 def train_net(cfg, network, roidb, checkpoints_dir,  max_iter, pretrain_model, restore):

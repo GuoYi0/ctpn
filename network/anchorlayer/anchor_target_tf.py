@@ -166,7 +166,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
 
     # 用hard_neg替换负例anchor
     for bg_ind, box in zip(bg_inds, hard_neg):
-        anchors[bg_ind] = box
+        anchors[bg_ind, :] = box[:]
 
     """返回值里面，只有正例的回归是有效值"""
     # 现在 每个有效的anchor都有了自己需要回归的真值
