@@ -1,5 +1,5 @@
 COMMON:
-  CKPT: E:/ctpn_yi/checkpoints/checkpoint
+  CKPT: checkpoints/checkpoint
   NUM_ANCHORS: 16
   INCREASE_BASE: 1.28
   MIN_ANCHOR_HEIGHT: 5
@@ -8,9 +8,9 @@ PREPARE:
   SLOP_THRESHOLD: 1
 TRAIN:
   USE_FLIPPED: False
-  USE_CACHED: True
-  CACHE_PATH: E:\ctpn_yi\dataset\cache
-  TRAIN_PATH: E:\ctpn_yi\dataset\for_train
+  USE_CACHED: False
+  CACHE_PATH: dataset/cache
+  TRAIN_PATH: dataset/for_train
   COORDINATE_NUM: 4
   IMS_BATCH_SIZE: 1  # 每轮图片的数目
   PIXEL_MEANS: [102.9801, 115.9465, 122.7717]
@@ -33,13 +33,11 @@ TRAIN:
   SCALE: 800
 TEST:
   DETECT_MODE: "O" # 字符"O"表示检测倾斜的，字符"H"表示检测水平的
-  DATA_DIR: E:\ctpn_yi\dataset\for_test # 测试图片的存储路径
-  RESULT_DIR_PIC: E:\ctpn_yi\data\results\pic # 结果图片路径
-  RESULT_DIR_TXT: E:\ctpn_yi\data\results\gt_txt # 结果图片路径
-  SCALE_BIG: 600
-  MAX_SCALE_BIG: 900
-  SCALE_SMALL: 2000
-  MAX_SCALE_SMALL: 2600
+  DATA_DIR: dataset/for_test # 测试图片的存储路径
+  RESULT_DIR_PIC: data/results/pic # 结果图片路径
+  RESULT_DIR_TXT: data/results/gt_txt # 结果图片路径
+  SCALE: 2000
+  MAX_SCALE: 2600
   TEXT_THRESH_BIG: 50  #大于该值的，归为大文本
   TEXT_THRESH_SMALL: 60  # 小于该值的， 归为小文本
   TEXT_NMS: 0.6 # 对整个文本框进行非极大值抑制的阈值

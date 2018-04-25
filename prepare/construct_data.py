@@ -1,10 +1,13 @@
 import os
-from lib.load_config import load_config
+
 import sys
 import cv2
 import shutil
 import math
 import numpy as np
+sys.path.append(os.curdir)
+from lib.load_config import load_config
+
 """
 这个脚本用来处理原始的数据，将图片按照短边600为标准进行缩放，如果缩放后长边超过1200，按照长边1200缩放，同时要缩放坐标
 要将数据整理成的格式如下，存放在dataset/for_train下
@@ -22,10 +25,10 @@ ctpn_new/dataset 目录下的所有文件将被git忽略，以提高push速度�
 由原始数据集得到训练数据集调用rawdata2traindata()
 """
 sys.path.append(os.getcwd())
-image_dir = "E:\\ctpn_yi\\dataset\\rawImage"  # 原始训练数据集图像目录
-txt_dir = "E:\\ctpn_yi\\dataset\\rawTxt"   # 原始训练数据集txt文本目录
-txtfortrain_dir = "E:\\ctpn_yi\\dataset/for_train/Imageinfo"  # 保存每张图片对应的txt文本的目录
-imagefortain_dir = "E:\\ctpn_yi\\dataset/for_train/Imageset"  # 保存图片文件的目录
+image_dir = "dataset/rawImage"  # 原始训练数据集图像目录
+txt_dir = "dataset/rawTxt"   # 原始训练数据集txt文本目录
+txtfortrain_dir = "dataset/for_train/Imageinfo"  # 保存每张图片对应的txt文本的目录
+imagefortain_dir = "dataset/for_train/Imageset"  # 保存图片文件的目录
 
 
 def rawdata2traindata(config):
@@ -38,7 +41,7 @@ def rawdata2traindata(config):
 def imagedata_process(config):
     # 下面两行，用于保存每张图片的信息
     filename = "train_set.txt"
-    pathdir = "E:\\ctpn_yi\\dataset/for_train"
+    pathdir = "dataset/for_train"
     # 判断train_set.txt是否存在，存在则删除
     if os.path.exists(pathdir + '/' + filename):
         os.remove(pathdir + '/' + filename)

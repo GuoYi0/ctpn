@@ -1,5 +1,6 @@
-import pickle
 import os
+import pickle
+
 import numpy as np
 
 
@@ -15,9 +16,10 @@ class roidb(object):
         assert config, 'roidb lack config'
 
         self.config = config
-        self._image_path = config.TRAIN.TRAIN_PATH + '/Imageset'
-        self._image_gt = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageinfo')
-        self._train_data_path = config.TRAIN.TRAIN_PATH  # E:\ctpn_yi\dataset\for_train
+        train_path = os.path.join('dataset', 'for_train')
+        self._image_path = os.path.join('dataset', 'for_train', 'Imageset')
+        self._image_gt = os.path.join('dataset', 'for_train','Imageinfo')
+        self._train_data_path = config.TRAIN.TRAIN_PATH  #
         self._setup()
 
     def _setup(self):
@@ -53,7 +55,7 @@ class roidb(object):
                 image_index.append(line[0])  # 图片名
                 # 这里必须是高在前，宽在后
                 height = int(line[1])  # 图片的高
-                wight = int(line[2])   # 图片的宽
+                wight = int(line[2])  # 图片的宽
                 channal = int(line[3])  # 图片的通道数
                 scale = float(line[4])  # 图片的缩放比
                 image_info.append(list([height, wight, channal, scale]))

@@ -194,7 +194,7 @@ class base_network(object):
             # anchors: (1, height, width, 10)所有的anchors
             rpn_labels, rpn_bbox_targets, anchors = tf.py_func(
                 anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
-                [tf.float32, tf.float32, tf.int32])
+                [tf.float32, tf.float32, tf.int64])
 
             rpn_labels = tf.convert_to_tensor(tf.cast(rpn_labels, tf.int32), name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
@@ -254,7 +254,7 @@ class base_network(object):
     def get_hard(self):
 
         real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
-        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM])
+        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM + 1])
         # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
         pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
         hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.float32, tf.float32])
