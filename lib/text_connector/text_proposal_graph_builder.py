@@ -26,14 +26,19 @@ class TextProposalGraphBuilder:
         """
         # 取出第index号文本片段
         box = self.text_proposals[index]
+        x0 = (box[0]+box[2])/2
+        y0 = (box[1]+box[3])/2
         results = []
         # MAX_HORIZONTAL_GAP = 50, 水平距离不超过50个像素的文本片段有可能对应同一个文本
         for left in range(int(box[0])+1, min(int(box[0])+self._cfg.TEST.MAX_HORIZONTAL_GAP+1, self.im_size[1])):
             # 取出x1=left的所有文本片段
             adj_box_indices = self.boxes_table[left]
             for adj_box_index in adj_box_indices:
+                x1 = (self.text_proposals[adj_box_index][0] + self.text_proposals[adj_box_index][2]) / 2
+                y1 = (self.text_proposals[adj_box_index][1] + self.text_proposals[adj_box_index][3]) / 2
+                dist1 = abs(x0 - x1) + abs(y0 - y1)
                 # 若这两个文本片段属于同一文本，则添加进results
-                if self.meet_v_iou(adj_box_index, index):
+                if self.meet_v_iou(adj_box_index, index) and dist1 < self._cfg.TEST.MAX_HORIZONTAL_GAP:
                     results.append(adj_box_index)
             if len(results) > 0:
                 return results
@@ -46,11 +51,16 @@ class TextProposalGraphBuilder:
         :return: 以列表形式返回左相邻的文本片段
         """
         box = self.text_proposals[index]
+        x0 = (box[0]+box[2])/2
+        y0 = (box[1]+box[3])/2
         results = []
         for left in range(int(box[0])-1, max(int(box[0]-self._cfg.TEST.MAX_HORIZONTAL_GAP), 0)-1, -1):
             adj_box_indices = self.boxes_table[left]
             for adj_box_index in adj_box_indices:
-                if self.meet_v_iou(adj_box_index, index):
+                x1 = (self.text_proposals[adj_box_index][0] + self.text_proposals[adj_box_index][2]) / 2
+                y1 = (self.text_proposals[adj_box_index][1] + self.text_proposals[adj_box_index][3]) / 2
+                dist1 = abs(x0 - x1) + abs(y0 - y1)
+                if self.meet_v_iou(adj_box_index, index) and dist1 < self._cfg.TEST.MAX_HORIZONTAL_GAP:
                     results.append(adj_box_index)
 
             # if len(results) != 0:
@@ -106,9 +116,10 @@ class TextProposalGraphBuilder:
             boxes_table[int(box[0])].append(index)
 
         self.boxes_table = boxes_table
+        length = text_proposals.shape[0]
 
         # 创建一个行列均为文本片个数的方阵， 初始化全部是False
-        graph = np.zeros((text_proposals.shape[0], text_proposals.shape[0]), np.bool)
+        graph = np.zeros((length, length), np.bool)
 
         # 对所有的文本片段进行遍历，取出与其右相邻的文本片段
         for index, box in enumerate(text_proposals):
@@ -127,10 +138,24 @@ class TextProposalGraphBuilder:
             # succession_index在index的右边
             if self.is_succession_node(index, succession_index):
                 graph[index, succession_index] = True
+
+        # 下面的代码，用于确保每个anchor只有一个左相邻
+        for k in range(length):
+            left = np.where(graph[:, k])[0]
+            if len(left) > 1:
+                graph[left, k] = False
+                criteria = scores[left] + self.y_iou(k, left)*self._cfg.TEST.RATIO
+                ind = int(np.argmax(criteria))
+                graph[ind, k] = True
         # 该图是一个方阵，(i, j)为True表示i对j右边相邻
         return graph
 
     def y_iou(self, index, succession):
+        """
+        :param index: 一个数
+        :param succession: 一个列表
+        :return: 数index与列表succession的y_iou
+        """
         v_iou = np.empty(shape=(len(succession),), dtype=np.float64)
         h1 = self.heights[index]
 

@@ -7,7 +7,7 @@ import cv2
 from lib.timer import Timer
 from lib.text_connector.detectors import TextDetector
 from exceptions import NoPositiveError
-
+from shapely.geometry import Polygon
 
 class TestClass(object):
     def __init__(self, cfg, network):
@@ -15,25 +15,26 @@ class TestClass(object):
         self._net = network
 
     # 画方框,被ctpn()调用
-    def draw_boxes(self, img, image_name, boxes):
+    def draw_boxes(self, img, image_name, boxes, color):
         """
         :param img: 最原始的图片矩阵
         :param image_name: 图片地址
         :param boxes: N×9的矩阵，表示N个拼接以后的完整的文本框。
         每一行，前八个元素一次是左上，右上，左下，右下的坐标，最后一个元素是文本框的分数
+        :param color: 颜色
         :return:
         """
         # base_name = image_name.split('/')[-1]
         base_name = os.path.basename(image_name)
         b_name, ext = os.path.splitext(base_name)
         if self._cfg.TEST.CONNECT:
-            with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'w') as f:
+            with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'a') as f:
                 for box in boxes:
                     # TODO 下面注释掉的这两行不知是啥意思
                     # if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3] - box[0]) < 5:
                     #     continue
                     # 默认用红色线条绘制，可能性最低
-                    color = (0, 0, 255)  # 颜色为BGR
+                    # color = (0, 0, 255)  # 颜色为BGR
                     cv2.line(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, thickness=2)
                     cv2.line(img, (int(box[0]), int(box[1])), (int(box[4]), int(box[5])), color, thickness=2)
                     cv2.line(img, (int(box[6]), int(box[7])), (int(box[2]), int(box[3])), color, thickness=2)
@@ -58,7 +59,7 @@ class TestClass(object):
                 cv2.line(img, (int(box[0]), int(box[1])), (int(box[0]), int(box[3])), color, thickness=2)
                 cv2.line(img, (int(box[2]), int(box[3])), (int(box[2]), int(box[1])), color, thickness=2)
                 cv2.line(img, (int(box[2]), int(box[3])), (int(box[0]), int(box[3])), color, thickness=2)
-        cv2.imwrite(os.path.join(self._cfg.TEST.RESULT_DIR_PIC, base_name), img)
+        # cv2.imwrite(os.path.join(self._cfg.TEST.RESULT_DIR_PIC, base_name), img)
 
     # 改变图片的尺寸，被ctpn()调用
     @ staticmethod
@@ -96,6 +97,38 @@ class TestClass(object):
         valid_inds = np.where(scores > 0)[0]
         return scores[valid_inds], boxes[valid_inds]
 
+    def box_nms(self, boxes):
+        length = boxes.shape[0]
+
+        areas = np.empty(shape=(length,), dtype=np.float32)
+        polygen = list()
+        # 获取每个文本框的面积
+        for i in range(length):
+            x0, y0, x1, y1, x2, y2, x3, y3 = boxes[i, 0:8]
+
+            coord = ((x0, y0), (x1, y1), (x3, y3), (x2, y2))
+            quad = Polygon(coord)
+            areas[i] = quad.area
+            polygen.append(quad)
+
+        for i in range(length):
+            if boxes[i, 8] > 0:
+                for j in range(i+1, length):
+                    if boxes[j, 8] > 0 and polygen[i].intersects(polygen[j]):
+                        na = polygen[i].intersection(polygen[j]).area
+                        if areas[i] > areas[j]:
+                            small_ind = j
+                        else:
+                            small_ind = i
+                        if na/areas[small_ind] > self._cfg.TEST.TEXT_NMS:
+                            boxes[small_ind, 8] = -1.0
+                            if small_ind == i:
+                                break
+        # valid_inds = np.where(boxes[:, 8] > 0)[0]
+
+        # return boxes[valid_inds, :]
+        return boxes
+
     # 被test_net()调用
     def ctpn(self, sess, net, image_name):
         """
@@ -106,9 +139,44 @@ class TestClass(object):
         """
         # 读取图片
         image = cv2.imread(image_name)
-        # shape = image.shape[:2]  # 获取高，宽
+        # 获取文本框
+        # 将一张图片缩放成两个尺寸，其中大尺寸检查小的文本，小尺寸检查大的文本
+        # boxes是缩放回原图的坐标
+        boxes_big = self.get_boxes(sess, net, image, model="big")
+        len_big = boxes_big.shape[0]
+        boxes_small = self.get_boxes(sess, net, image, model="small")
+        boxes = np.concatenate((boxes_big, boxes_small), axis=0)
+
+        boxes_nms = self.box_nms(boxes)  # 对文本框进行非极大值抑制
+
+        # self.draw_boxes(image, image_name, boxes_nms, (0, 0, 255))
+
+        boxes_big = boxes_nms[:len_big]
+        boxes_small = boxes_nms[len_big:]
+
+        valid_inds = np.where(boxes_big[:, 8] > 0)[0]
+        boxes_big = boxes_big[valid_inds]
+
+        valid_inds = np.where(boxes_small[:, 8] > 0)[0]
+        boxes_small = boxes_small[valid_inds]
+
+        self.draw_boxes(image, image_name, boxes_big, (0, 0, 255))
+        self.draw_boxes(image, image_name, boxes_small, (0, 255, 0))
+
+        base_name = os.path.basename(image_name)
+        cv2.imwrite(os.path.join(self._cfg.TEST.RESULT_DIR_PIC, base_name), image)
+
+        # 在原始图片上画图
+
+    def get_boxes(self, sess, net, image,model):
+        assert model in ["big", "small"], "model must be big or small"
         # resize_im，返回缩放后的图片和相应的缩放比。缩放比定义为 修改后的图/原图
-        img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE, max_scale=self._cfg.TEST.MAX_SCALE)
+        # 根据模式的不同，缩放成不同大小的图片
+        if model == "big":
+            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_BIG, max_scale=self._cfg.TEST.MAX_SCALE_BIG)
+        else:
+            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_SMALL, max_scale=self._cfg.TEST.MAX_SCALE_SMALL)
+
         shape = img.shape[:2]  # 获取缩放后的高，宽
         # 将图片去均值化
         im_orig = img.astype(np.float32, copy=True)
@@ -117,6 +185,26 @@ class TestClass(object):
         # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，
         # 该片段为映射回缩放以后的图片坐标，并且已经进行了非极大值抑制
         scores, boxes = TestClass.test_ctpn(sess, net, im_orig, scale)
+        # 获得anchor的高
+        high = abs(boxes[:, 3]-boxes[:, 1]) + 1
+        # 缩放回原图
+        high = high/scale
+        # print(high)
+        # 根据检测模式筛选anchor
+        if model == "big":
+            # model=='big'时，检测大文本，只保留大的anchor
+            valid_ind = np.where(high >= self._cfg.TEST.TEXT_THRESH_BIG)[0]
+        else:
+            # 检查小文本模式，使用小anchor
+            valid_ind = np.where(high <= self._cfg.TEST.TEXT_THRESH_SMALL)[0]
+
+        # print(valid_ind)
+
+        scores = scores[valid_ind]
+        boxes = boxes[valid_ind, :]
+
+        # valid_len=len(scores)
+        # assert valid_len>0,"no valid anchor"
 
         if self._cfg.TEST.BIG_CONNECT:
             scores, boxes = self.merge_y_anchor(scores, boxes)
@@ -137,10 +225,7 @@ class TestClass(object):
             boxes[:, 0:8] = boxes[:, 0:8] / scale
         else:
             boxes = boxes / scale
-        # 在原始图片上画图
-        #anchor
-
-        self.draw_boxes(image, image_name, boxes)
+        return boxes
 
     def test_net(self, graph):
 
@@ -197,6 +282,8 @@ class TestClass(object):
             except:
                 print("the pic {} may has problems".format(im))
                 continue
+            # self.ctpn(sess, self._net, im_name)
+
             i += 1
             if i % 10 == 0:
                 _diff_time = timer.toc(average=False)
@@ -223,5 +310,5 @@ class TestClass(object):
         rois = rois[0]
         scores = rois[:, 0]
         # 这里是缩放后的坐标
-        boxes = rois[:, 1:5]
+        boxes = rois[:,1:5]
         return scores, boxes
