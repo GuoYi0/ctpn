@@ -78,7 +78,7 @@ def get_iou(gt, dr):
     return p, r, p_a, r_a, w_p_a, w_r_a
 
 
-if __name__ == '__main__':
+def evaluate():
     # GroundTruth文件目录
     gt_path = "E:\\alidata\\[update] ICPR_text_train_part1_20180316\\train_1000\\txt_1000"
     # 输出的预测结果DetectResult文件目录

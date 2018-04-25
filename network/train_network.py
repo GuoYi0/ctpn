@@ -11,8 +11,9 @@ class train_network(bn):
         self.im_info = tf.placeholder(tf.float32, shape=(3,), name='im_info')
         # GT_boxes信息，N×8矩阵，每一行为一个gt_box，分别代表x1,y1,x2,y2,x3,y3,x4,y4,依次为左上，右上，右下，左下
         self.gt_boxes = tf.placeholder(tf.float32, shape=[None, 8], name='gt_boxes')
-        self.hard_neg = tf.placeholder(tf.float32, shape=[None, 5], name='hard_neg')
-        self.hard_pos = tf.placeholder(tf.float32, shape=[None, 5], name='hard_pos')
+        # hard_neg 和 hard_pos，一维整形数组，用来保存 ID
+        self.hard_neg = tf.placeholder(tf.int32, shape=[None], name='hard_neg')
+        self.hard_pos = tf.placeholder(tf.int32, shape=[None], name='hard_pos')
         # dropout以后保留的概率
         self.keep_prob = tf.placeholder(tf.float32)
         self.setup()

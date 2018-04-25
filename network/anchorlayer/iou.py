@@ -108,21 +108,16 @@ def bbox_overlaps(anchors, gt_boxes):
             try:
                 if an_box.intersects(gt_list[k]):
                     cross_area = gt_list[k].intersection(an_box).area
-                # gt_y1 = get_y(gt_boxes[k, 0], gt_boxes[k, 1], gt_boxes[k, 2], gt_boxes[k, 3], anchor_x)
-                # gt_y2 = get_y(gt_boxes[k, 4], gt_boxes[k, 5], gt_boxes[k, 6], gt_boxes[k, 7], anchor_x)
-
                     gt_y1, gt_y2 = get_box_y(gt_boxes[k, 0], gt_boxes[k, 1], gt_boxes[k, 2], gt_boxes[k, 3],
-                                         gt_boxes[k, 4], gt_boxes[k, 5], gt_boxes[k, 6], gt_boxes[k, 7], anchor_x)
+                                             gt_boxes[k, 4], gt_boxes[k, 5], gt_boxes[k, 6], gt_boxes[k, 7], anchor_x)
                     ymin = min([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
                     ymax = max([gt_y1, gt_y2, anchors[n, 1], anchors[n, 3]])
-                # uh = ymax - ymin + 1
                     uh = ymax - ymin
                     overlaps[n, k] = cross_area / (uh * anchor_width)
             except:
-                print(an_coords, ((gt_boxes[k, 0], gt_boxes[k, 1]),
-                     (gt_boxes[k, 2], gt_boxes[k, 3]),
-                     (gt_boxes[k, 4], gt_boxes[k, 5]),
-                     (gt_boxes[k, 6], gt_boxes[k, 7]),))
+                overlaps[n, k] = -5.0  # 对于计算交集有问题的anchor，其iou一律设置为-5.0，在后续将其标签设置为-1
+                print(an_coords, ((gt_boxes[k, 0], gt_boxes[k, 1]), (gt_boxes[k, 2], gt_boxes[k, 3]),
+                                  (gt_boxes[k, 4], gt_boxes[k, 5]), (gt_boxes[k, 6], gt_boxes[k, 7]),))
     return overlaps
 
 

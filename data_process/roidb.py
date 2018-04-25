@@ -16,9 +16,9 @@ class roidb(object):
         assert config, 'roidb lack config'
 
         self.config = config
-        train_path = os.path.join('dataset', 'for_train')
-        self._image_path = os.path.join('dataset', 'for_train', 'Imageset')
-        self._image_gt = os.path.join('dataset', 'for_train','Imageinfo')
+        # train_path = os.path.join('dataset', 'for_train')
+        self._image_path = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageset')
+        self._image_gt = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageinfo')
         self._train_data_path = config.TRAIN.TRAIN_PATH  #
         self._setup()
 
@@ -125,6 +125,6 @@ class roidb(object):
             'width': single_img_info[1],
             'image_scale': single_img_info[3],
             'gt_boxes': boxes,
-            'hard_neg': list(),
-            'hard_pos': list()
+            'hard_neg': list([-1, ]),
+            'hard_pos': list([-1, ])
         }

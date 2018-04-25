@@ -107,3 +107,19 @@
 # print(ind[0])
 # print(ind)
 from shapely.geometry import Polygon
+# print([0,])
+import numpy as np
+a = np.array([1,2,3, 4, 5, 6, 7, 8,9, 10])
+print(a.ndim)
+print(len(a))
+tag1 = a > 5
+tag2 = a % 2 == 0
+print(tag1)
+print(tag2)
+gg = []
+k = 0
+for i, j in zip(tag1, tag2):
+    if i and j:
+        gg.append(k)
+    k += 1
+print(a[gg])

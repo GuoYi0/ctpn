@@ -10,8 +10,8 @@ cfg = load_config()
 
 
 def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg, _feat_stride):
-    # hard_pos: shape=[None, 4]
-    # hard_neg: shape=[None, 4]
+    # hard_pos: shape=[None]，一维数组，第0号元素表示该特征图的有效anchor总数，后续的对应hard的ID
+    # hard_neg: shape=[None]
     # 生成基本的anchor,一共10个,返回一个10行4列矩阵，每行为一个anchor，返回的只是基于中心的相对坐标
     # 这里返回的4个值是对应的某个anchor的xmin, xmax, ymin, ymax
     _anchors = generate_anchors(cfg)
@@ -30,20 +30,11 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # 因此需要计算出每个anchor在图像中的真实位置，shift_x shift_y 对应于每个像素点的偏移量，
     shift_x = np.arange(0, width) * _feat_stride  # 返回一个列表，[0, 16, 32, 48, ...]
     shift_y = np.arange(0, height) * _feat_stride
-
-    # 此时，shift_x作为一个行向量往下复制， 复制的次数等于shift_y的长度
-    # 而shift_y作为一个列向量朝右复制，复制的次数等于shift_x的长度。这样他们的维度完全相同
     shift_x, shift_y = np.meshgrid(shift_x, shift_y)  # in W H order
-    # K is H x W
-    # .ravel()将数组按行展开，展开为一行
-    # .vstack()将四个展开列的以为数组垂直堆叠起来，再转置
-    # shift的行数为像素个数，列数为4
+
     shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
                         shift_x.ravel(), shift_y.ravel())).transpose()
-    # add A anchors (1, A, 4) to
-    # cell K shifts (K, 1, 4) to get
-    # shift anchors (K, A, 4)
-    # reshape to (K*A, 4) shifted anchors
+
     A = _num_anchors  # 10个anchor
     K = shifts.shape[0]  # feature-map的像素个数
 
@@ -53,15 +44,13 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # 用每个像素点所对应的anchor四条边的的相对坐标加偏移量，得到anchor box具体的值
     all_anchors = (_anchors.reshape((1, A, cfg.TRAIN.COORDINATE_NUM)) +
                    shifts.reshape((1, K, cfg.TRAIN.COORDINATE_NUM)).transpose((1, 0, 2)))
-
-    # 至此，每一行为一个anchor， 每十行为一个滑动窗对应的十个anchor，第二个十行为往右走所对应的十个anchors
-    # 每十行为一个k的anchor
     all_anchors = all_anchors.reshape((K * A, cfg.TRAIN.COORDINATE_NUM))
-    # TODO 暂时用每个标签的序号作为唯一标记
-    # 给每个anchor 添加一个id
-    anchor_hash = np.arange(K * A).reshape([-1, 1])
-    all_anchors = np.hstack([all_anchors, anchor_hash])
     total_anchors = int(K * A)
+    # 为鲁棒性考虑，hard_neg[0]与hard_pos[0]都是用来存储总的anchor个数的
+    assert len(hard_neg) > 0, "fatal error! in file {}".format(__file__)
+    if hard_neg[0] > 0:
+        assert total_anchors == hard_neg[0], "the pic generate diff num of anhors during two training stage"
+        assert total_anchors == hard_pos[0], "the pic generate diff num of anhors during two training stage"
 
     # 仅保留那些还在图像内部的anchor
     inds_inside = np.where(
@@ -70,9 +59,11 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
         (all_anchors[:, 2] < im_info[1] + _allowed_border) &  # width
         (all_anchors[:, 3] < im_info[0] + _allowed_border)  # height
     )[0]
-    total_valid_anchors = len(inds_inside)  # 在图片里面的anchors
+    total_valid_anchors = len(inds_inside)  # 在图片里面的anchors的数目
     assert total_valid_anchors > 0, "The number of total valid anchor must be lager than zero"
-    # 经过验证，这里的anchors的宽度全部是16
+    # hard_neg[0]在初始化的时候是 -1，后续用来保存有效anchor的个数，
+    # 这里确保同一张图片在每轮训练中，所产生的有效anchor数是一样的
+
     anchors = all_anchors[inds_inside, :]  # 保留那些在图像内的anchor
 
     # 至此，anchor准备好了
@@ -81,12 +72,12 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # (A)
 
     # 将有用的label 筛选出来
-    labels = np.empty((total_valid_anchors,), dtype=np.int8)
+    labels = np.empty((total_valid_anchors,), dtype=np.int32)
     labels.fill(-1)  # 初始化label，均为-1
 
     # 计算anchor和gt-box的overlap，用来给anchor上标签
     overlaps = bbox_overlaps(
-        np.ascontiguousarray(anchors[:, :4], dtype=np.float),
+        np.ascontiguousarray(anchors, dtype=np.float),
         np.ascontiguousarray(gt_boxes, dtype=np.float))  # 假设anchors有x个，gt_boxes有y个，返回的是一个（x,y）的数组
 
     assert overlaps.shape[0] == total_valid_anchors, "Fatal Error: in the file {}".format(__file__)
@@ -97,119 +88,56 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # # 返回一个一维数组，第i号元素的值表示第i个anchor与最可能的GT之间的IOU
 
     # =================================================================================================================
+    tag1 = max_overlaps > 0
+    tag2 = max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP
+    negative = []
+    for k in range(len(tag1)):
+        if tag2[k] and tag1[k]:
+            negative.append(k)
+    # # 最大iou < 0.3 的设置为负例,这里要写明大于0，是因为对于计算iou有问题的anchor，其iou设置为-5了，他的标签为-1
+    labels[negative] = 0
+    # cfg.TRAIN.RPN_POSITIVE_OVERLAP = 0.8
+    labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1  # overlap大于0.8的认为是前景
 
-    # TODO 对于hard  neg 和 hard pos 直接赋0 和 1
-
-    if hard_neg.shape[0] > 0:
-        hard_neg_ind = hard_neg[:, 4].reshape([1,-1]).astype(np.int64)[0]
-    else:
-        hard_neg_ind = np.array([]).astype(np.int64)
-    if hard_pos.shape[0] > 0:
-        hard_pos_ind = hard_pos[:, 4].reshape([1,-1]).astype(np.int64)[0]
-    else:
-        hard_pos_ind = np.array([]).astype(np.int64)
-
-
-
-    labels[hard_neg_ind] = 0
-    labels[hard_pos_ind] = 1
-
-
-
-    num_hard_neg = hard_neg.shape[0]
-    num_hard_pos = hard_pos.shape[0]
-
+    # 最多的前景个数
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)  # 0.5*300
 
-    if num_hard_pos < num_fg:
-        # TODO if the num of hard neg less than the pos num we want. we randomly choice some
+    fg_inds = np.where(labels == 1)[0]  # 返回一个数组, 正例的索引
 
-        indx_fg = np.where(max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP)[0]
-        indx_fg = np.array(indx_fg ,dtype=np.int64)
-        # print(indx_fg)
+    num_fg_inds = len(fg_inds)  # 正例的长度
+    if num_fg_inds > num_fg:
+        npr.shuffle(fg_inds)
+        labels[fg_inds[num_fg:]] = -1
+        num_fg_inds = num_fg
+    elif num_fg_inds == 0:
+        raise NoPositiveError("Tne number of positive anchor cannot be zero")
 
-        # 从所有过了阈值的索引中选出不在hard neg中的索引，随机选择
-        pos_for_vacancy = npr.choice(np.array(list(set(indx_fg) - set(hard_pos_ind))), num_fg - num_hard_pos)
-        labels[pos_for_vacancy] = 1
+    # 若困难正例存在，则将对应的标签置为 1
+    num_hard_pos = len(hard_pos) - 1
+    if num_hard_pos > 0:
+        labels[hard_pos[1:]] = 1
+        num_fg_inds += num_hard_pos
 
-    elif num_hard_pos > num_fg:
-        # pos 个数超过了需要的个数，随机至为-1
-        labels[npr.choice(hard_pos_ind, num_hard_pos - num_fg)] = -1
+    ratio = (1-cfg.TRAIN.RPN_FG_FRACTION)/cfg.TRAIN.RPN_FG_FRACTION
+    num_bg = int(min(cfg.TRAIN.RPN_BATCHSIZE - num_fg, ratio*num_fg_inds))
 
-    num_bg = int((1- cfg.TRAIN.RPN_FG_FRACTION) * cfg.TRAIN.RPN_BATCHSIZE)
+    bg_inds = np.where(labels == 0)[0]
 
-    # if num_hard_neg < num_bg:
-    #     # TODO if the num of hard pos less than the pos num we want. we randomly choice some
-    #     indx_bg = np.where(max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP)[0]
-    #     # 从所有过了阈值的索引中选出不在hard pos中的索引，随机选择
-    #     neg_for_vacancy = npr.choice(np.array(list(set(indx_bg) - set(hard_neg_ind))), num_bg - num_hard_neg)
-    #     labels[neg_for_vacancy] = 0
-    #
-    # elif num_hard_neg > num_bg:
-    #     # neg 个数超过了需要的个数，随机至为-1
-    #     labels[npr.choice(hard_neg_ind, num_hard_neg - num_bg)] = -1
+    num_bg_inds = len(bg_inds)  # 正例的长度
+    if num_bg_inds > num_bg:
+        npr.shuffle(bg_inds)
+        labels[bg_inds[num_bg:]] = -1
+    elif num_bg_inds == 0:
+        raise NoPositiveError("Tne number of negative anchor cannot be zero")
 
-
-
-
-    # labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-    # # cfg.TRAIN.RPN_POSITIVE_OVERLAP = 0.8
-    # labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1  # overlap大于0.8的认为是前景
-    #
-    #
-    # # 最多的前景个数
-    #
-    #
-    # # 困难前景个数
-    # num_hard_pos = hard_pos.shape[0]
-    #
-    # assert num_fg >= num_hard_pos, "The maximum number of positive anchors is {}, " \
-    #                                "which is less than the number of hard_pos {} ".format(num_fg, num_hard_pos)
-    #
-    # fg_inds = np.where(labels == 1)[0]  # 返回一个数组, 正例的索引
-    #
-    # num_fg_inds = len(fg_inds)  # 正例的长度
-    # if num_fg_inds > num_fg:
-    #     npr.shuffle(fg_inds)
-    #     labels[num_fg:] = -1
-    #     num_fg_inds = num_fg
-    # elif num_fg_inds == 0:
-    #     raise NoPositiveError("Tne number of positive anchor cannot be zero")
-    #
-    # # subsample negative labels if we have too many
-    # # 对负样本进行采样，如果负样本的数量太多的话
-    # # 正负样本总数是300，限制正样本数目最多150，
-    # ratio = (1 - cfg.TRAIN.RPN_FG_FRACTION) / cfg.TRAIN.RPN_FG_FRACTION
-    # num_bg = int(min(cfg.TRAIN.RPN_BATCHSIZE - num_fg, ratio * num_fg_inds))
-    #
-    # num_hard_neg = hard_neg.shape[0]
-    # # assert num_bg >= num_hard_neg, "The maximum number of positive anchors is {}, " \
-    # #                                "which is less than the number of hard_pos {} ".format(num_bg, num_hard_neg)
-    #
-    # bg_inds = np.where(labels == 0)[0]
-    #
-    # num_bg_inds = len(bg_inds)  # 负例的长度
-    #
-    # # 如果负例的长度小于困难负例个数，则从标签为-1里面挑取一些出来补充，反正到后面都要用困难负例替换的
-    # if num_bg_inds < num_hard_neg:
-    #     doncare = np.where(labels == -1)[0]
-    #     res = npr.choice(doncare, num_hard_neg - num_bg_inds, replace=False)
-    #     labels[res] = 0
-    #     bg_inds = np.concatenate((bg_inds, res))
-    #
-    # # 如果负例个数大于指定的最多个数，则把后面多余的置位-1
-    # elif num_bg_inds > num_bg:
-    #     npr.shuffle(bg_inds)
-    #     labels[num_bg:] = -1
-    #     bg_inds = bg_inds[:num_fg]
-    #
-    # # 用hard_neg替换负例anchor
-    # for bg_ind, box in zip(bg_inds, hard_neg):
-    #     anchors[bg_ind, :] = box[:]
+    # 若困难正例存在，则将对应的标签置为 1
+    num_hard_neg = len(hard_neg) - 1
+    if num_hard_neg > 0:
+        labels[hard_neg[1:]] = 0
 
     """返回值里面，只有正例的回归是有效值"""
     # 现在 每个有效的anchor都有了自己需要回归的真值
-    bbox_targets = _compute_targets(anchors[:,:4], labels, gt_boxes[argmax_overlaps, :])
+    bbox_targets = _compute_targets(anchors, labels, gt_boxes[argmax_overlaps, :])
 
     # 一开始是将超出图像范围的anchor直接丢掉的，现在在加回来， 加回来的的标签全部置为-1
     # labels是内部anchor的分类， total_anchors是总的anchor数目， inds_inside是内部anchor的索引
@@ -227,7 +155,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
 
     rpn_bbox_targets = bbox_targets
 
-    # 返回的类型，依次是int8，float32， int32
+    # 返回的类型，依次是int32，float32， int32
     return rpn_labels, rpn_bbox_targets, all_anchors
 
 
@@ -308,12 +236,12 @@ def _get_h_y(anchors, inds_positive, gt):
     return gt_heights, gt_y
 
 
-# data是内部anchor的分类， count是总的anchor数目， inds是内部anchor的索引
+# data是内部anchor的分类标签， count是总的anchor数目， inds是内部anchor的索引
 def _unmap(data, count, inds, fill=0):
     """ Unmap a subset of item (data) back to the original set of items (of
     size count) """
     if len(data.shape) == 1:
-        ret = np.empty((count,), dtype=np.float32)
+        ret = np.empty((count,), dtype=np.int32)
         ret.fill(fill)
         ret[inds] = data
     else:

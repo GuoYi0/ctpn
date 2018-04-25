@@ -91,7 +91,7 @@ class SolverWrapper(object):
                 raise 'Check your pretrained {:s}'.format(ckpt.model_checkpoint_path)
         timer = Timer()
 
-        loss_list = [total_loss, model_loss, rpn_cross_entropy, rpn_loss_box,hard_neg, hard_pos, train_op]
+        loss_list = [total_loss, model_loss, rpn_cross_entropy, rpn_loss_box]
         train_list = [hard_neg, hard_pos, train_op]
         for iter in range(restore_iter, self.max_iter):
             timer.tic()
@@ -107,8 +107,7 @@ class SolverWrapper(object):
                 print("warning: abandon a picture named {}, because it has "
                       "no gt_boxes".format(blobs['im_name']))
                 continue
-            print("===================", blobs['hard_neg'].shape, blobs['hard_neg'].shape)
-            print("++++++++++++++++++++", blobs['hard_pos'].shape, blobs['hard_pos'].shape)
+
             feed_dict = {
                 self.net.data: blobs['data'],  # 一个形状为[批数，宽，高，通道数]的源图片，命名为“data”
                 self.net.im_info: blobs['im_info'],  # 一个三维向量，包含高，宽，缩放比例
@@ -117,29 +116,20 @@ class SolverWrapper(object):
                 self.net.hard_neg: blobs['hard_neg'],
                 self.net.hard_pos: blobs['hard_pos']
             }
-            # hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
-            # self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
-            # try:
-            #     hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
-            #     # 把难以区分的正负例添加进去
-            #     # TODO 要检查一下，这里返回的hard_neg2, hard_pos2列表里面的元素是否是numpy对象，其实是一个多行四列的数组
-            #     self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
-            #
-            # except NoPositiveError:
-            #     print("warning: abandon a picture named {}".format(blobs['im_name']))
+            try:
+                hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
+                # 把难以区分的正负例添加进去
+                self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+
+            except NoPositiveError:
+                print("warning: abandon a picture named {}".format(blobs['im_name']))
             # except:
             #     print("pic {} may has problem".format(blobs['im_name']))
-            #     continue
-            #
-
-            total_loss_val, model_loss_val, rpn_loss_cls_val, rpn_loss_box_val, hard_neg2, hard_pos2, _\
-                = sess.run(fetches=loss_list, feed_dict=feed_dict)
-
-
-            self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+                continue
 
             if iter % self._cfg.TRAIN.DISPLAY == 0:
-
+                total_loss_val, model_loss_val, rpn_loss_cls_val, rpn_loss_box_val = \
+                    sess.run(fetches=loss_list, feed_dict=feed_dict)
                 print('iter: %d / %d, total loss: %.4f, model loss: %.4f, rpn_loss_cls: %.4f, '
                       'rpn_loss_box: %.4f, lr: %f' % (iter, self.max_iter, total_loss_val, model_loss_val,
                                                       rpn_loss_cls_val, rpn_loss_box_val, lr.eval()))
@@ -156,7 +146,7 @@ class SolverWrapper(object):
 def train_net(cfg, network, roidb, checkpoints_dir,  max_iter, pretrain_model, restore):
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allocator_type = 'BFC'
-    config.gpu_options.per_process_gpu_memory_fraction = 0.9
+    config.gpu_options.per_process_gpu_memory_fraction = 0.8
 
     with tf.Session(config=config) as sess:
         '''sw = solver wrapper'''

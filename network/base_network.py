@@ -194,13 +194,12 @@ class base_network(object):
             # anchors: (1, height, width, 10)所有的anchors
             rpn_labels, rpn_bbox_targets, anchors = tf.py_func(
                 anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
-                [tf.float32, tf.float32, tf.int64])
-
-            rpn_labels = tf.convert_to_tensor(tf.cast(rpn_labels, tf.int32), name='rpn_labels')
+                [tf.int32, tf.float32, tf.int32])
+            # TODO  为了鲁棒性，统一起来，标签为int32，回归为float32，anchor为int32
+            rpn_labels = tf.convert_to_tensor(rpn_labels, name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
             anchors = tf.convert_to_tensor(anchors, name="anchors")
 
-            # TODO 这里暂时只需要返回标签和anchor回归目标就可以了，后续会增加side refinement
             return rpn_labels, rpn_bbox_targets, anchors
 
     @layer
@@ -219,9 +218,7 @@ class base_network(object):
             # rpn_rois <- (1 x H x W x A, 5) [0, x1, y1, x2, y2]
         with tf.variable_scope(name):
             # blob返回一個多行5列矩陣，第一列为分数，后四列为盒子坐标
-            blob = tf.py_func(proposal_layer_py,
-                                          [input[0], input[1], input[2], _feat_stride],
-                                          [tf.float32])
+            blob = tf.py_func(proposal_layer_py, [input[0], input[1], input[2], _feat_stride], [tf.float32])
 
             rpn_rois = tf.convert_to_tensor(tf.reshape(blob, [-1, 5]), name='rpn_rois')  # shape is (1 x H x W x A, 5)
             return rpn_rois
@@ -254,27 +251,11 @@ class base_network(object):
     def get_hard(self):
 
         real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
-        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM + 1])
+        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM])
         # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
         pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
-        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.float32, tf.float32])
+        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.int32, tf.int32])
 
-
-
-        # length = real_tag.shape()[0]
-        #
-        # # 这里的reshape全部是?啊，length也是?啊
-        # # assert length == pred_prob.get_shape()[0] == anchors.get_shape()[0]
-        # hard_pos = []
-        # hard_neg = []
-        #
-        # for i in range(length):
-        #     # 真实的标签是文字，其预测的文字概率却小于0.5，就是hard positive
-        #     if real_tag[i] == 1 and pred_prob[i, 1] < 0.5:
-        #         hard_pos.append(anchors[i])
-        #     # 真实的标签是背景，其预测的背景概率却小于0.5，就是hard negative
-        #     elif real_tag[i] == 0 and pred_prob[i, 0] < 0.5:
-        #         hard_neg.append(anchors[i])
         hard_neg = tf.convert_to_tensor(hard_neg)
         hard_pos = tf.convert_to_tensor(hard_pos)
         return hard_neg, hard_pos
@@ -351,18 +332,20 @@ class base_network(object):
 
 def get_hard_py(real_tag, anchors, pred_prob):
     length = real_tag.shape[0]
-    # 这里的reshape全部是?啊，length也是?啊
-    assert length == pred_prob.shape[0] == anchors.shape[0]
+    assert length == pred_prob.shape[0] == anchors.shape[0], "in file {}, the length of real_tag, pred_prob, " \
+                                                             "anchors is {}, {}, {}, respecttively".\
+        format(__file__, length, pred_prob.shape[0], anchors.shape[0])
     hard_pos = []
     hard_neg = []
-
+    hard_pos.append(length)
+    hard_neg.append(length)
     for i in range(length):
         # 真实的标签是文字，其预测的文字概率却小于0.5，就是hard positive
         if real_tag[i] == 1 and pred_prob[i, 1] < 0.5:
-            hard_pos.append(anchors[i])
+            hard_pos.append(i)
         # 真实的标签是背景，其预测的背景概率却小于0.5，就是hard negative
         elif real_tag[i] == 0 and pred_prob[i, 0] < 0.5:
-            hard_neg.append(anchors[i])
-    neg = np.array(hard_neg).astype(dtype=np.float32, copy=False)
-    pos = np.array(hard_pos).astype(dtype=np.float32, copy=False)
+            hard_neg.append(i)
+    neg = np.array(hard_neg, dtype=np.int32)
+    pos = np.array(hard_pos, dtype=np.int32)
     return neg, pos

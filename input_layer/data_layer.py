@@ -42,14 +42,13 @@ class InputLayer(object):
         :param hard_pos: 一个多行四列的数组，
         :param hard_neg: 一个多行四列的数组，
         """
+        assert hard_neg.ndim == 1, "int {},the dimmension of hard_neg must be one!".format(__file__)
+        assert hard_pos.ndim == 1, "int {},the dimmension of hard_pos must be one!".format(__file__)
         self._roidb[self._cur]['hard_pos'].clear()
-        if hard_pos.shape[0] != 0:
-            self._roidb[self._cur]['hard_pos'].append(hard_pos)
+        self._roidb[self._cur]['hard_pos'].extend(list(hard_pos))
 
         self._roidb[self._cur]['hard_neg'].clear()
-        if hard_neg.shape[0] != 0:
-            self._roidb[self._cur]['hard_neg'].append(hard_neg)
-
+        self._roidb[self._cur]['hard_neg'].extend(list(hard_neg))
 
     def _get_next_minibatch(self):
         """Return the blobs to be used for the next minibatch.
@@ -59,22 +58,11 @@ class InputLayer(object):
         """
         db_inds = self._get_next_minibatch_inds()
         minibatch_db = [self._roidb[i] for i in db_inds]
-        print(minibatch_db[0]['image_path'])
         im_blob = cv2.imread(minibatch_db[0]['image_path'])
         # 去均值化
         im_blob = im_blob.astype(np.float32)
         im_blob -= self._cfg.TRAIN.PIXEL_MEANS
         im_blob = im_blob[np.newaxis, :]
-        if len(minibatch_db[0]['hard_neg']) == 0:
-            hard_neg = np.array([]).reshape((-1, 5))
-        else:
-            hard_neg = minibatch_db[0]['hard_neg'][0]
-
-        if len(minibatch_db[0]['hard_pos']) == 0:
-            hard_pos = np.array([]).reshape((-1, 5))
-        else:
-            hard_pos = minibatch_db[0]['hard_pos'][0]
-
         single_blob = {'data': im_blob,
                        # ”gt_boxes"须是一个N行4列的矩阵，每一行代表一个GT
                        'gt_boxes': minibatch_db[0]['gt_boxes'],
@@ -82,8 +70,8 @@ class InputLayer(object):
                        'im_info': np.array([minibatch_db[0]['height'],
                                             minibatch_db[0]['width'], minibatch_db[0]["image_scale"]]),
                        'im_name': os.path.basename(minibatch_db[0]['image_name']),
-                       'hard_neg': hard_neg,
-                       'hard_pos': hard_pos
+                       'hard_neg': np.array(minibatch_db[0]['hard_neg'], dtype=np.int32),
+                       'hard_pos': np.array(minibatch_db[0]['hard_pos'], dtype=np.int32)
                        }
         return single_blob
 
