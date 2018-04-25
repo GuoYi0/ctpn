@@ -254,7 +254,7 @@ class base_network(object):
     def get_hard(self):
 
         real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
-        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM])
+        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM + 1])
         # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
         pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
         hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.float32, tf.float32])

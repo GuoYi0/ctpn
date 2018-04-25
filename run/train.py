@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # pretrain_model 预训练VGG16模型 绝对路径
     # restore bool值 是否从checkpoints断点开始恢复上次中断的训练
     # """
-    vgg16_net_param = 'dataset/pretrain/VGG_imagenet.npy'
+    vgg16_net_param = os.path.join('dataset','pretrain','VGG_imagenet.npy')
     network = get_train_network(cfg)
     train_net(cfg, network, roidb, checkpoints_dir, max_iter=cfg.TRAIN.MAX_ITER,
-              pretrain_model=vgg16_net_param, restore=False)
+              pretrain_model=vgg16_net_param, restore=True)

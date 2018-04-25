@@ -16,9 +16,10 @@ class roidb(object):
         assert config, 'roidb lack config'
 
         self.config = config
-        self._image_path = config.TRAIN.TRAIN_PATH + '/Imageset'
-        self._image_gt = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageinfo')
-        self._train_data_path = config.TRAIN.TRAIN_PATH  # E:\ctpn_yi\dataset\for_train
+        train_path = os.path.join('dataset', 'for_train')
+        self._image_path = os.path.join('dataset', 'for_train', 'Imageset')
+        self._image_gt = os.path.join('dataset', 'for_train','Imageinfo')
+        self._train_data_path = config.TRAIN.TRAIN_PATH  #
         self._setup()
 
     def _setup(self):
