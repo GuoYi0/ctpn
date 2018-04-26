@@ -9,6 +9,7 @@ from lib.text_connector.detectors import TextDetector
 from exceptions import NoPositiveError
 from shapely.geometry import Polygon
 
+
 class TestClass(object):
     def __init__(self, cfg, network):
         self._cfg = cfg
@@ -142,9 +143,9 @@ class TestClass(object):
         # 获取文本框
         # 将一张图片缩放成两个尺寸，其中大尺寸检查小的文本，小尺寸检查大的文本
         # boxes是缩放回原图的坐标
-        boxes_big = self.get_boxes(sess, net, image, model="big")
+        boxes_big = self.get_boxes(sess, net, image, mode="big")
         len_big = boxes_big.shape[0]
-        boxes_small = self.get_boxes(sess, net, image, model="small")
+        boxes_small = self.get_boxes(sess, net, image, mode="small")
         boxes = np.concatenate((boxes_big, boxes_small), axis=0)
 
         boxes_nms = self.box_nms(boxes)  # 对文本框进行非极大值抑制
@@ -168,14 +169,16 @@ class TestClass(object):
 
         # 在原始图片上画图
 
-    def get_boxes(self, sess, net, image,model):
-        assert model in ["big", "small"], "model must be big or small"
+    def get_boxes(self, sess, net, image, mode):
+        assert mode in ["big", "small"], "model must be big or small"
         # resize_im，返回缩放后的图片和相应的缩放比。缩放比定义为 修改后的图/原图
         # 根据模式的不同，缩放成不同大小的图片
-        if model == "big":
-            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_BIG, max_scale=self._cfg.TEST.MAX_SCALE_BIG)
+        if mode == "big":
+            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_BIG,
+                                             max_scale=self._cfg.TEST.MAX_SCALE_BIG)
         else:
-            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_SMALL, max_scale=self._cfg.TEST.MAX_SCALE_SMALL)
+            img, scale = TestClass.resize_im(image, scale=self._cfg.TEST.SCALE_SMALL,
+                                             max_scale=self._cfg.TEST.MAX_SCALE_SMALL)
 
         shape = img.shape[:2]  # 获取缩放后的高，宽
         # 将图片去均值化
@@ -184,14 +187,14 @@ class TestClass(object):
 
         # 将缩放和去均值化以后的图片，放入网络进行前向计算，获取分数和对应的文本片段，
         # 该片段为映射回缩放以后的图片坐标，并且已经进行了非极大值抑制
-        scores, boxes = TestClass.test_ctpn(sess, net, im_orig, scale)
+        scores, boxes = TestClass.test_ctpn(sess, net, im_orig)
         # 获得anchor的高
         high = abs(boxes[:, 3]-boxes[:, 1]) + 1
         # 缩放回原图
         high = high/scale
         # print(high)
         # 根据检测模式筛选anchor
-        if model == "big":
+        if mode == "big":
             # model=='big'时，检测大文本，只保留大的anchor
             valid_ind = np.where(high >= self._cfg.TEST.TEXT_THRESH_BIG)[0]
         else:
@@ -220,7 +223,7 @@ class TestClass(object):
             一个N×9的矩阵，表示N个拼接以后的完整的文本框。
             每一行，前八个元素一次是左上，右上，左下，右下的坐标，最后一个元素是文本框的分数
             """
-            # 缩放前的boxes
+            # 返回缩放前的boxes
             boxes = textdetector.detect(boxes, scores, shape)
             boxes[:, 0:8] = boxes[:, 0:8] / scale
         else:
@@ -260,10 +263,6 @@ class TestClass(object):
         else:
             raise 'Check your pretrained {:s}'.format(self._cfg.TEST.RESULT_DIR)
 
-        # # TODO 这里需要仔细测试一下
-        # im_names = glob.glob(os.path.join(self._cfg.TEST.DATA_DIR, '*.png')) + \
-        #            glob.glob(os.path.join(self._cfg.TEST.DATA_DIR, '*.jpg'))
-
         im_names = os.listdir(self._cfg.TEST.DATA_DIR)
 
         assert len(im_names) > 0, "Nothing to test"
@@ -279,9 +278,9 @@ class TestClass(object):
             except NoPositiveError:
                 print("Warning!!, get no region of interest in picture {}".format(im))
                 continue
-            except:
-                print("the pic {} may has problems".format(im))
-                continue
+            # except:
+            #     print("the pic {} may has problems".format(im))
+            #     continue
             # self.ctpn(sess, self._net, im_name)
 
             i += 1
@@ -294,9 +293,9 @@ class TestClass(object):
         sess.close()
 
     @ staticmethod
-    def test_ctpn(sess, net, im, scale):
-        # print("===============", type(im))
-        im_info = np.array([im.shape[0], im.shape[1], scale])
+    def test_ctpn(sess, net, im):
+        # im_info = np.array([im.shape[0], im.shape[1]])
+        im_info = im.shape[0:2]
         im = im[np.newaxis, :]
         feed_dict = {net.data: im, net.im_info: im_info, net.keep_prob: 1.0}
         fetches = [net.get_output('rois'), ]
@@ -310,5 +309,5 @@ class TestClass(object):
         rois = rois[0]
         scores = rois[:, 0]
         # 这里是缩放后的坐标
-        boxes = rois[:,1:5]
+        boxes = rois[:, 1:5]
         return scores, boxes

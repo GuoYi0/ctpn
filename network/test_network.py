@@ -8,7 +8,7 @@ class test_network(base_network):
         super().__init__(cfg)
         self.cfg = cfg
         self.data = tf.placeholder(tf.float32, shape=[1, None, None, 3])
-        self.im_info = tf.placeholder(tf.float32, shape=(3,))  # 图片信息，（高，宽，缩放比）
+        self.im_info = tf.placeholder(tf.int32, shape=[2])  # 图片信息，（高，宽）
         self.keep_prob = tf.placeholder(tf.float32)
         self.setup()
 
