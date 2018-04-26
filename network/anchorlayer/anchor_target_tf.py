@@ -88,7 +88,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # # 返回一个一维数组，第i号元素的值表示第i个anchor与最可能的GT之间的IOU
 
     # =================================================================================================================
-    tag1 = max_overlaps > 0
+    tag1 = max_overlaps >= -1.0
     tag2 = max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP
     negative = []
     for k in range(len(tag1)):
