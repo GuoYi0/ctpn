@@ -7,8 +7,8 @@ class train_network(bn):
         super().__init__(cfg)
         # 数据的输入入口,是一个形状为[批数，高，宽，通道数]的源图片，命名为“data”
         self.data = tf.placeholder(tf.float32, shape=[self._cfg.TRAIN.IMS_BATCH_SIZE, None, None, 3], name='data')
-        # 图像信息，一个三维向量，包含图片高，宽, 缩放比
-        self.im_info = tf.placeholder(tf.float32, shape=(3,), name='im_info')
+        # 图像信息，一个三维向量，包含图片高，宽
+        self.im_info = tf.placeholder(tf.int32, shape=(2,), name='im_info')
         # GT_boxes信息，N×8矩阵，每一行为一个gt_box，分别代表x1,y1,x2,y2,x3,y3,x4,y4,依次为左上，右上，右下，左下
         self.gt_boxes = tf.placeholder(tf.float32, shape=[None, 8], name='gt_boxes')
         # hard_neg 和 hard_pos，一维整形数组，用来保存 ID

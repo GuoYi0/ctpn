@@ -41,8 +41,8 @@ TEST:
   MAX_SCALE_BIG: 900  # 双模式测试，测试小文本缩放到大尺度
   SCALE_SMALL: 2000  # 双模式测试，测试小文本缩放到大尺度
   MAX_SCALE_SMALL: 2600  # 双模式测试，测试大文本缩放到小尺度
-  TEXT_THRESH_BIG: 40  #大于该值的，归为大文本
-  TEXT_THRESH_SMALL: 90  # 小于该值的， 归为小文本
+  TEXT_THRESH_BIG: 50  #大于该值的，归为大文本
+  TEXT_THRESH_SMALL: 60  # 小于该值的， 归为小文本
   TEXT_NMS: 0.6 # 对整个文本框进行非极大值抑制的阈值
   TEXT_PROPOSALS_WIDTH: 16
   MIN_NUM_PROPOSALS: 3 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
@@ -50,7 +50,7 @@ TEST:
   LINE_MIN_SCORE: 0.91 # 整个文本的分数阈值，，
   TEXT_PROPOSALS_MIN_SCORE: 0.80 # 对于anchor而言，大于该分数就判定为正例
   MAX_HORIZONTAL_GAP: 50  # 水平片段大于该值的，就不连接在一起了
-  MIN_V_OVERLAPS: 0.04  # y方向IOU大于该值的，就算相邻
+  MIN_V_OVERLAPS: 0.08  # y方向IOU大于该值的，就算相邻
   MIN_SIZE_SIM: 0.55  # y方向的相似度大于该值，就判定为相邻
   RPN_PRE_NMS_TOP_N: 12000
   RPN_POST_NMS_TOP_N: 2000

@@ -21,6 +21,7 @@ class InputLayer(object):
         """
         self._roidb = roidb.roidb
         self._shuffle_roidb_inds()
+        self._ind = len(self._roidb) + 1  # 指示当前训练图片的索引，初始化为越界值
 
     def _shuffle_roidb_inds(self):
         """Randomly permute the training roidb."""
@@ -34,8 +35,7 @@ class InputLayer(object):
             self._shuffle_roidb_inds()
         # 先将指示剂后移一位，再返回去
         self._cur += cfg.TRAIN.IMS_BATCH_SIZE
-        db_inds = self._perm[self._cur:self._cur + cfg.TRAIN.IMS_BATCH_SIZE]
-        return db_inds
+        self._ind = self._perm[self._cur]
 
     def put_hard(self, hard_pos, hard_neg):
         """
@@ -56,22 +56,22 @@ class InputLayer(object):
         If cfg.TRAIN.USE_PREFETCH is True, then blobs will be computed in a
         separate process and made available through self._blob_queue.
         """
-        db_inds = self._get_next_minibatch_inds()
-        minibatch_db = [self._roidb[i] for i in db_inds]
-        im_blob = cv2.imread(minibatch_db[0]['image_path'])
+        self._get_next_minibatch_inds()
+        minibatch_db = self._roidb[self._ind]
+        im_blob = cv2.imread(minibatch_db['image_path'])
         # 去均值化
         im_blob = im_blob.astype(np.float32)
         im_blob -= self._cfg.TRAIN.PIXEL_MEANS
         im_blob = im_blob[np.newaxis, :]
         single_blob = {'data': im_blob,
                        # ”gt_boxes"须是一个N行4列的矩阵，每一行代表一个GT
-                       'gt_boxes': minibatch_db[0]['gt_boxes'],
+                       'gt_boxes': minibatch_db['gt_boxes'],
                        # im_info须是一个包含三个元素的向量，分别代表图片的高，宽，缩放比
-                       'im_info': np.array([minibatch_db[0]['height'],
-                                            minibatch_db[0]['width'], minibatch_db[0]["image_scale"]]),
-                       'im_name': os.path.basename(minibatch_db[0]['image_name']),
-                       'hard_neg': np.array(minibatch_db[0]['hard_neg'], dtype=np.int32),
-                       'hard_pos': np.array(minibatch_db[0]['hard_pos'], dtype=np.int32)
+                       'im_info': np.array([minibatch_db['height'],
+                                            minibatch_db['width']]),
+                       'im_name': os.path.basename(minibatch_db['image_name']),
+                       'hard_neg': np.array(minibatch_db['hard_neg'], dtype=np.int32),
+                       'hard_pos': np.array(minibatch_db['hard_pos'], dtype=np.int32)
                        }
         return single_blob
 

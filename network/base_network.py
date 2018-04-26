@@ -192,15 +192,13 @@ class base_network(object):
             # rpn_labels：(1, height, width, 10) height width为feature map对应的宽高
             # rpn_bbox_targets (1, height, width, 20) 标签为1的标签后回归目标
             # anchors: (1, height, width, 10)所有的anchors
-            rpn_labels, rpn_bbox_targets, anchors = tf.py_func(
+            rpn_labels, rpn_bbox_targets = tf.py_func(
                 anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
-                [tf.int32, tf.float32, tf.int32])
+                [tf.int32, tf.float32])
             # TODO  为了鲁棒性，统一起来，标签为int32，回归为float32，anchor为int32
             rpn_labels = tf.convert_to_tensor(rpn_labels, name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
-            anchors = tf.convert_to_tensor(anchors, name="anchors")
-
-            return rpn_labels, rpn_bbox_targets, anchors
+            return rpn_labels, rpn_bbox_targets
 
     @layer
     def proposal_layer(self, input, _feat_stride,  name):
@@ -251,10 +249,9 @@ class base_network(object):
     def get_hard(self):
 
         real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
-        anchors = tf.reshape(self.get_output('rpn-data')[2], [-1, self._cfg.TRAIN.COORDINATE_NUM])
         # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
         pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
-        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, anchors, pred_prob], [tf.int32, tf.int32])
+        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, pred_prob], [tf.int32, tf.int32])
 
         hard_neg = tf.convert_to_tensor(hard_neg)
         hard_pos = tf.convert_to_tensor(hard_pos)
@@ -330,11 +327,10 @@ class base_network(object):
                           [-1, input_shape[1], input_shape[2], input_shape[3]], name=name)
 
 
-def get_hard_py(real_tag, anchors, pred_prob):
+def get_hard_py(real_tag, pred_prob):
     length = real_tag.shape[0]
-    assert length == pred_prob.shape[0] == anchors.shape[0], "in file {}, the length of real_tag, pred_prob, " \
-                                                             "anchors is {}, {}, {}, respecttively".\
-        format(__file__, length, pred_prob.shape[0], anchors.shape[0])
+    assert length == pred_prob.shape[0], "in file {}, the length of real_tag, pred_prob " \
+                                         "is {}, {}, respecttively".format(__file__, length, pred_prob.shape[0])
     hard_pos = []
     hard_neg = []
     hard_pos.append(length)

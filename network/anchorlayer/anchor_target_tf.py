@@ -156,7 +156,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     rpn_bbox_targets = bbox_targets
 
     # 返回的类型，依次是int32，float32， int32
-    return rpn_labels, rpn_bbox_targets, all_anchors
+    return rpn_labels, rpn_bbox_targets
 
 
 def get_y(x1, y1, x2, y2, x, min_val=True):

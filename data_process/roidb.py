@@ -123,7 +123,6 @@ class roidb(object):
             'image_name': image_name,
             'height': single_img_info[0],
             'width': single_img_info[1],
-            'image_scale': single_img_info[3],
             'gt_boxes': boxes,
             'hard_neg': list([-1, ]),
             'hard_pos': list([-1, ])
