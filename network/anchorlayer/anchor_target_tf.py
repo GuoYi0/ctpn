@@ -10,7 +10,8 @@ cfg = load_config()
 
 
 def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg, _feat_stride):
-    # hard_pos: shape=[None]，一维数组，第0号元素表示该特征图的有效anchor总数，后续的对应hard的ID
+    # hard_pos: shape=[None]，一维数组，第0号元素表示该特征图的有效anchor总数，第一号是有效anchor数，后续的对应hard的ID
+    # 注意，这里的ID是相对于有效anchor的ID，而不是相对于总的anchor的ID
     # hard_neg: shape=[None]
     # 生成基本的anchor,一共10个,返回一个10行4列矩阵，每行为一个anchor，返回的只是基于中心的相对坐标
     # 这里返回的4个值是对应的某个anchor的xmin, xmax, ymin, ymax
@@ -47,10 +48,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     all_anchors = all_anchors.reshape((K * A, cfg.TRAIN.COORDINATE_NUM))
     total_anchors = int(K * A)
     # 为鲁棒性考虑，hard_neg[0]与hard_pos[0]都是用来存储总的anchor个数的
-    assert len(hard_neg) > 0, "fatal error! in file {}".format(__file__)
-    if hard_neg[0] > 0:
-        assert total_anchors == hard_neg[0], "the pic generate diff num of anhors during two training stage"
-        assert total_anchors == hard_pos[0], "the pic generate diff num of anhors during two training stage"
+    assert len(hard_neg) > 1, "fatal error! in file {}".format(__file__)
 
     # 仅保留那些还在图像内部的anchor
     inds_inside = np.where(
@@ -58,12 +56,18 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
         (all_anchors[:, 1] >= -_allowed_border) &
         (all_anchors[:, 2] < im_info[1] + _allowed_border) &  # width
         (all_anchors[:, 3] < im_info[0] + _allowed_border)  # height
-    )[0]
+    )[0].astype(np.int32)
     total_valid_anchors = len(inds_inside)  # 在图片里面的anchors的数目
     assert total_valid_anchors > 0, "The number of total valid anchor must be lager than zero"
     # hard_neg[0]在初始化的时候是 -1，后续用来保存有效anchor的个数，
     # 这里确保同一张图片在每轮训练中，所产生的有效anchor数是一样的
-
+    if hard_neg[0] > 0:
+        assert total_anchors == hard_neg[0], "the pic generate diff num of anhors during two training stage"
+        assert total_anchors == hard_pos[0], "the pic generate diff num of anhors during two training stage"
+        assert total_valid_anchors == hard_neg[1], \
+            "the pic generate diff num of inside anhors during two training stage"
+        assert total_valid_anchors == hard_pos[1], \
+            "the pic generate diff num of inside anhors during two training stage"
     anchors = all_anchors[inds_inside, :]  # 保留那些在图像内的anchor
 
     # 至此，anchor准备好了
@@ -85,17 +89,10 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     # argmax_overlaps[0]表示第0号anchor与所有GT的IOU最大值的脚标
     argmax_overlaps = overlaps.argmax(axis=1)
     max_overlaps = overlaps[np.arange(total_valid_anchors), argmax_overlaps]
-    # # 返回一个一维数组，第i号元素的值表示第i个anchor与最可能的GT之间的IOU
-
     # =================================================================================================================
-    tag1 = max_overlaps >= -1.0
-    tag2 = max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP
-    negative = []
-    for k in range(len(tag1)):
-        if tag2[k] and tag1[k]:
-            negative.append(k)
+
     # # 最大iou < 0.3 的设置为负例,这里要写明大于0，是因为对于计算iou有问题的anchor，其iou设置为-5了，他的标签为-1
-    labels[negative] = 0
+    labels[(max_overlaps > -1.0) & (max_overlaps <= cfg.TRAIN.RPN_NEGATIVE_OVERLAP)] = 0
     # cfg.TRAIN.RPN_POSITIVE_OVERLAP = 0.8
     labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1  # overlap大于0.8的认为是前景
 
@@ -108,32 +105,30 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     if num_fg_inds > num_fg:
         npr.shuffle(fg_inds)
         labels[fg_inds[num_fg:]] = -1
-        num_fg_inds = num_fg
     elif num_fg_inds == 0:
         raise NoPositiveError("Tne number of positive anchor cannot be zero")
 
-    # 若困难正例存在，则将对应的标签置为 1
-    num_hard_pos = len(hard_pos) - 1
-    if num_hard_pos > 0:
-        labels[hard_pos[1:]] = 1
-        num_fg_inds += num_hard_pos
+    # 困难正例对应的标签置为 1
+    if len(hard_pos) > 2:
+        #TODO 这里不会报错，因为hard_neg[2:]是一个数组，故max_overlaps[hard_neg[2:]]即使只有一个对象，也是数组，
+        assert all(max_overlaps[hard_neg[2:]] >= cfg.TRAIN.RPN_POSITIVE_OVERLAP)
+        labels[hard_pos[2:]] = 1
 
-    ratio = (1-cfg.TRAIN.RPN_FG_FRACTION)/cfg.TRAIN.RPN_FG_FRACTION
-    num_bg = int(min(cfg.TRAIN.RPN_BATCHSIZE - num_fg, ratio*num_fg_inds))
+    num_bg = cfg.TRAIN.RPN_BATCHSIZE - num_fg
 
     bg_inds = np.where(labels == 0)[0]
 
-    num_bg_inds = len(bg_inds)  # 正例的长度
+    num_bg_inds = len(bg_inds)  # 负例的长度
     if num_bg_inds > num_bg:
         npr.shuffle(bg_inds)
         labels[bg_inds[num_bg:]] = -1
     elif num_bg_inds == 0:
         raise NoPositiveError("Tne number of negative anchor cannot be zero")
 
-    # 若困难正例存在，则将对应的标签置为 1
-    num_hard_neg = len(hard_neg) - 1
-    if num_hard_neg > 0:
-        labels[hard_neg[1:]] = 0
+    # 困难负例的标签置为 0
+    if len(hard_neg) > 2:
+        assert all(max_overlaps[hard_neg[2:]] <= cfg.TRAIN.RPN_NEGATIVE_OVERLAP)
+        labels[hard_neg[2:]] = 0
 
     """返回值里面，只有正例的回归是有效值"""
     # 现在 每个有效的anchor都有了自己需要回归的真值
@@ -156,7 +151,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
     rpn_bbox_targets = bbox_targets
 
     # 返回的类型，依次是int32，float32， int32
-    return rpn_labels, rpn_bbox_targets
+    return rpn_labels, rpn_bbox_targets, inds_inside
 
 
 def get_y(x1, y1, x2, y2, x, min_val=True):

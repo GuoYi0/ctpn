@@ -192,13 +192,14 @@ class base_network(object):
             # rpn_labels：(1, height, width, 10) height width为feature map对应的宽高
             # rpn_bbox_targets (1, height, width, 20) 标签为1的标签后回归目标
             # anchors: (1, height, width, 10)所有的anchors
-            rpn_labels, rpn_bbox_targets = tf.py_func(
+            rpn_labels, rpn_bbox_targets, inside_inds = tf.py_func(
                 anchor_target_layer_py, [input[0], input[1], input[2], input[3], input[4], _feat_stride],
-                [tf.int32, tf.float32])
+                [tf.int32, tf.float32, tf.int32])
             # TODO  为了鲁棒性，统一起来，标签为int32，回归为float32，anchor为int32
             rpn_labels = tf.convert_to_tensor(rpn_labels, name='rpn_labels')
             rpn_bbox_targets = tf.convert_to_tensor(rpn_bbox_targets, name='rpn_bbox_targets')
-            return rpn_labels, rpn_bbox_targets
+            inside_inds = tf.convert_to_tensor(inside_inds, name='inside_inds')
+            return rpn_labels, rpn_bbox_targets, inside_inds
 
     @layer
     def proposal_layer(self, input, _feat_stride,  name):
@@ -244,14 +245,16 @@ class base_network(object):
             raise KeyError('Unknown layer name fed: %s' % layer)
         return layer
 
-
-
     def get_hard(self):
-
+        """
+        取出hard anchor的ID，注意，这里的ID是相对于内部有效anchor的ID
+        :return:
+        """
         real_tag = tf.reshape(self.get_output('rpn-data')[0], [-1])  # 真实的标签
+        inside_inds = tf.reshape(self.get_output('rpn-data')[2], [-1])  # 内部anchor索引
         # 取出预测的正负例的概率,两列，前一列为背景的概率，后一列为文字的概率
         pred_prob = tf.reshape(self.get_output('rpn_cls_prob'), [-1, 2])
-        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, pred_prob], [tf.int32, tf.int32])
+        hard_neg, hard_pos = tf.py_func(get_hard_py, [real_tag, pred_prob, inside_inds], [tf.int32, tf.int32])
 
         hard_neg = tf.convert_to_tensor(hard_neg)
         hard_pos = tf.convert_to_tensor(hard_pos)
@@ -327,20 +330,22 @@ class base_network(object):
                           [-1, input_shape[1], input_shape[2], input_shape[3]], name=name)
 
 
-def get_hard_py(real_tag, pred_prob):
+def get_hard_py(real_tag, pred_prob, inside_inds):
     length = real_tag.shape[0]
     assert length == pred_prob.shape[0], "in file {}, the length of real_tag, pred_prob " \
                                          "is {}, {}, respecttively".format(__file__, length, pred_prob.shape[0])
     hard_pos = []
     hard_neg = []
     hard_pos.append(length)
+    hard_pos.append(len(inside_inds))
     hard_neg.append(length)
-    for i in range(length):
+    hard_neg.append(len(inside_inds))
+    for i, ind in enumerate(inside_inds):
         # 真实的标签是文字，其预测的文字概率却小于0.5，就是hard positive
-        if real_tag[i] == 1 and pred_prob[i, 1] < 0.5:
+        if real_tag[ind] == 1 and pred_prob[ind, 1] < 0.5:
             hard_pos.append(i)
         # 真实的标签是背景，其预测的背景概率却小于0.5，就是hard negative
-        elif real_tag[i] == 0 and pred_prob[i, 0] < 0.5:
+        elif real_tag[ind] == 0 and pred_prob[ind, 0] < 0.5:
             hard_neg.append(i)
     neg = np.array(hard_neg, dtype=np.int32)
     pos = np.array(hard_pos, dtype=np.int32)

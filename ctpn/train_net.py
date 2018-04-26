@@ -93,8 +93,10 @@ class SolverWrapper(object):
 
         loss_list = [total_loss, model_loss, rpn_cross_entropy, rpn_loss_box]
         train_list = [hard_neg, hard_pos, train_op]
+        num_neg = 0
+        num_pos = 0
+        timer.tic()
         for iter in range(restore_iter, self.max_iter):
-            timer.tic()
             # learning rate
             if iter != 0 and iter % self._cfg.TRAIN.STEPSIZE == 0:  # 每STEPSIZE轮，学习率变为原来的0.1
                 sess.run(tf.assign(lr, lr.eval() * self._cfg.TRAIN.GAMMA))
@@ -120,6 +122,8 @@ class SolverWrapper(object):
                 hard_neg2, hard_pos2, _ = sess.run(fetches=train_list, feed_dict=feed_dict)
                 # 把难以区分的正负例添加进去
                 self.data_layer.put_hard(hard_pos=hard_pos2, hard_neg=hard_neg2)
+                num_pos += len(hard_pos2) - 2
+                num_neg += len(hard_neg2) - 2
 
             except NoPositiveError:
                 print("warning: abandon a picture named {}".format(blobs['im_name']))
@@ -133,8 +137,13 @@ class SolverWrapper(object):
                 print('iter: %d / %d, total loss: %.4f, model loss: %.4f, rpn_loss_cls: %.4f, '
                       'rpn_loss_box: %.4f, lr: %f' % (iter, self.max_iter, total_loss_val, model_loss_val,
                                                       rpn_loss_cls_val, rpn_loss_box_val, lr.eval()))
-            _diff_time = timer.toc(average=False)
-            print('speed: {:.3f}s / iter'.format(_diff_time))
+                print("hard_pos: {},  hard_neg: {}".format(
+                    num_pos/self._cfg.TRAIN.DISPLAY, num_neg/self._cfg.TRAIN.DISPLAY))
+                num_neg = 0
+                num_pos = 0
+                _diff_time = timer.toc(average=False)
+                print('speed: {:.3f}s for {} pictures'.format(_diff_time, self._cfg.TRAIN.DISPLAY))
+                timer.tic()
 
             # 每1000次保存一次模型
             if (iter + 1) % self._cfg.TRAIN.SNAPSHOT_ITERS == 0:  # 每一千次保存一下ckeckpoints

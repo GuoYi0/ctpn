@@ -124,6 +124,6 @@ class roidb(object):
             'height': single_img_info[0],
             'width': single_img_info[1],
             'gt_boxes': boxes,
-            'hard_neg': list([-1, ]),
-            'hard_pos': list([-1, ])
+            'hard_neg': list([-1, -1]),  # 初始值，第一个用来保存总的anchor的个数，第二个用来保存内部anchor个数
+            'hard_pos': list([-1, -1])
         }
