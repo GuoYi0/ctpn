@@ -19,9 +19,10 @@ class InputLayer(object):
         "width"：宽
         ”image_path“：图片路径
         """
-        self._roidb = roidb.roidb
+        self.ROIDB = roidb
+        self._roidb = self.ROIDB.gt_roidb
         self._shuffle_roidb_inds()
-        self._ind = len(self._roidb) + 1  # 指示当前训练图片的索引，初始化为越界值
+        self._ind = len(self._roidb) + 1  # 指示当前训练的图片,初始化为越界的地方
 
     def _shuffle_roidb_inds(self):
         """Randomly permute the training roidb."""
@@ -35,7 +36,7 @@ class InputLayer(object):
             self._shuffle_roidb_inds()
         # 先将指示剂后移一位，再返回去
         self._cur += cfg.TRAIN.IMS_BATCH_SIZE
-        self._ind = self._perm[self._cur]
+        self._ind = self._perm[self._cur]  # 指示当前训练的图片的索引
 
     def put_hard(self, hard_pos, hard_neg):
         """
@@ -44,11 +45,11 @@ class InputLayer(object):
         """
         assert hard_neg.ndim == 1, "int {},the dimmension of hard_neg must be one!".format(__file__)
         assert hard_pos.ndim == 1, "int {},the dimmension of hard_pos must be one!".format(__file__)
-        self._roidb[self._cur]['hard_pos'].clear()
-        self._roidb[self._cur]['hard_pos'].extend(list(hard_pos))
+        self._roidb[self._ind]['hard_pos'].clear()
+        self._roidb[self._ind]['hard_pos'].extend(list(hard_pos))
 
-        self._roidb[self._cur]['hard_neg'].clear()
-        self._roidb[self._cur]['hard_neg'].extend(list(hard_neg))
+        self._roidb[self._ind]['hard_neg'].clear()
+        self._roidb[self._ind]['hard_neg'].extend(list(hard_neg))
 
     def _get_next_minibatch(self):
         """Return the blobs to be used for the next minibatch.
@@ -78,6 +79,9 @@ class InputLayer(object):
     def forward(self):
         """Get blobs and copy them into this layer's top blob vector."""
         return self._get_next_minibatch()
+
+    def write2cache(self):
+        self.ROIDB.write2cache()
 
 
 def get_data_layer(roidb, config):

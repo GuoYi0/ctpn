@@ -9,6 +9,10 @@ DEFAULT_PADDING = "SAME"
 def layer(op):
     def layer_decorated(self, *args, **kwargs):
         name = kwargs['name']
+        store = True
+        if 'store' in kwargs:
+            store = kwargs['store']
+            del kwargs['store']
         # 取出输入数据
         if len(self.inputs) == 0:
             raise RuntimeError('No input variables found for layer %s.' % name)
@@ -19,7 +23,8 @@ def layer(op):
         # 执行操作，并返回输出数据
         layer_output = op(self, layer_input, *args, **kwargs)
         # 把输出结果加入到layers里面去，保存起来
-        self.layers[name] = layer_output
+        if store:
+            self.layers[name] = layer_output
         # 喂入临时缓存
         self.feed(layer_output)
         return self

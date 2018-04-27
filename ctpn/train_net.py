@@ -97,6 +97,7 @@ class SolverWrapper(object):
         num_pos = 0
         timer.tic()
         for iter in range(restore_iter, self.max_iter):
+            
             # learning rate
             if iter != 0 and iter % self._cfg.TRAIN.STEPSIZE == 0:  # 每STEPSIZE轮，学习率变为原来的0.1
                 sess.run(tf.assign(lr, lr.eval() * self._cfg.TRAIN.GAMMA))
@@ -144,9 +145,9 @@ class SolverWrapper(object):
                 _diff_time = timer.toc(average=False)
                 print('speed: {:.3f}s for {} pictures'.format(_diff_time, self._cfg.TRAIN.DISPLAY))
                 timer.tic()
-
             # 每1000次保存一次模型
             if (iter + 1) % self._cfg.TRAIN.SNAPSHOT_ITERS == 0:  # 每一千次保存一下ckeckpoints
+                self.data_layer.write2cache()
                 self.snapshot(sess, iter)
         # for循環結束以後，記錄下最後一次
         # self.snapshot(sess, self.max_iter - 1)
@@ -155,7 +156,7 @@ class SolverWrapper(object):
 def train_net(cfg, network, roidb, checkpoints_dir,  max_iter, pretrain_model, restore):
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allocator_type = 'BFC'
-    config.gpu_options.per_process_gpu_memory_fraction = 0.8
+    config.gpu_options.allow_growth = True  # 程序按需申请内存
 
     with tf.Session(config=config) as sess:
         '''sw = solver wrapper'''

@@ -1,6 +1,6 @@
 import os
 import pickle
-
+import shutil
 import numpy as np
 
 
@@ -20,16 +20,15 @@ class roidb(object):
         self._image_path = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageset')
         self._image_gt = os.path.join(config.TRAIN.TRAIN_PATH, 'Imageinfo')
         self._train_data_path = config.TRAIN.TRAIN_PATH  #
+        self.gt_roidb = None  # 核心参数
         self._setup()
+
 
     def _setup(self):
         self._load_image_set_index()
 
         self._gt_roidb()
 
-    @property
-    def roidb(self):
-        return self._roidb
 
     def _get_image_path_with_name(self, image_name):
         image_path = os.path.join(self._image_path, image_name)
@@ -69,19 +68,18 @@ class roidb(object):
 
         if os.path.exists(cache_file) and self.config.TRAIN.USE_CACHED:
             with open(cache_file, 'rb') as fid:
-                gt_roidb = pickle.load(fid)
+                self.gt_roidb = pickle.load(fid)
             print('gt roidb loaded from {}'.format(cache_file))
 
         else:
-            gt_roidb = [self._process_each_image_gt(index, image_name)
+            self.gt_roidb = [self._process_each_image_gt(index, image_name)
                         for index, image_name in enumerate(self._image_index)]
             if not os.path.exists(self.config.TRAIN.CACHE_PATH):
                 os.makedirs(self.config.TRAIN.CACHE_PATH)
             with open(cache_file, 'wb') as fid:
-                pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
-
+                pickle.dump(self.gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
             print('wrote gt roidb to {}'.format(cache_file))
-        self._roidb = gt_roidb
+        # self._roidb = gt_roidb
         """
         gt_roidb是一个列表，列表的每个元素是一个字典，字典的键有
         'image_name'：字符串，表示图片名字
@@ -92,6 +90,15 @@ class roidb(object):
         'hard_neg': 困难负例
         'hard_pos': 困难正例
         """
+
+    def write2cache(self):
+        if os.path.exists(self.config.TRAIN.CACHE_PATH):
+            shutil.rmtree(self.config.TRAIN.CACHE_PATH)
+        os.makedirs(self.config.TRAIN.CACHE_PATH)
+        cache_file = os.path.join(self.config.TRAIN.CACHE_PATH, 'roidb.pkl')
+        with open(cache_file, 'wb') as fid:
+            pickle.dump(self.gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+
 
     def _process_each_image_gt(self, index, image_name):
 

@@ -8,7 +8,7 @@ class train_network(bn):
         # 数据的输入入口,是一个形状为[批数，高，宽，通道数]的源图片，命名为“data”
         self.data = tf.placeholder(tf.float32, shape=[self._cfg.TRAIN.IMS_BATCH_SIZE, None, None, 3], name='data')
         # 图像信息，一个三维向量，包含图片高，宽
-        self.im_info = tf.placeholder(tf.int32, shape=(2,), name='im_info')
+        self.im_info = tf.placeholder(tf.int32, shape=[2], name='im_info')
         # GT_boxes信息，N×8矩阵，每一行为一个gt_box，分别代表x1,y1,x2,y2,x3,y3,x4,y4,依次为左上，右上，右下，左下
         self.gt_boxes = tf.placeholder(tf.float32, shape=[None, 8], name='gt_boxes')
         # hard_neg 和 hard_pos，一维整形数组，用来保存 ID
@@ -26,22 +26,22 @@ class train_network(bn):
 
         # padding本来是“VALID”，我把下面的padding全部改为了“SAME”， 以充分检测
         (self.feed('data')   # 把[批数，宽，高，通道]形式的源图像数据喂入inputs
-             .conv(3, 3, 64, 1, 1, name='conv1_1')
-             .conv(3, 3, 64, 1, 1, name='conv1_2')   # k_h, k_w, c_o, s_h, s_w, name,
-             .max_pool(2, 2, 2, 2, padding='SAME', name='pool1')
-             .conv(3, 3, 128, 1, 1, name='conv2_1')
-             .conv(3, 3, 128, 1, 1, name='conv2_2')
-             .max_pool(2, 2, 2, 2, padding='SAME', name='pool2')
-             .conv(3, 3, 256, 1, 1, name='conv3_1')
-             .conv(3, 3, 256, 1, 1, name='conv3_2')
-             .conv(3, 3, 256, 1, 1, name='conv3_3')
-             .max_pool(2, 2, 2, 2, padding='SAME', name='pool3')
-             .conv(3, 3, 512, 1, 1, name='conv4_1')
-             .conv(3, 3, 512, 1, 1, name='conv4_2')
-             .conv(3, 3, 512, 1, 1, name='conv4_3')
-             .max_pool(2, 2, 2, 2, padding='SAME', name='pool4')
-             .conv(3, 3, 512, 1, 1, name='conv5_1')
-             .conv(3, 3, 512, 1, 1, name='conv5_2')
+             .conv(3, 3, 64, 1, 1, name='conv1_1', store=False)
+             .conv(3, 3, 64, 1, 1, name='conv1_2', store=False)   # k_h, k_w, c_o, s_h, s_w, name,
+             .max_pool(2, 2, 2, 2, padding='SAME', name='pool1', store=False)
+             .conv(3, 3, 128, 1, 1, name='conv2_1', store=False)
+             .conv(3, 3, 128, 1, 1, name='conv2_2', store=False)
+             .max_pool(2, 2, 2, 2, padding='SAME', name='pool2', store=False)
+             .conv(3, 3, 256, 1, 1, name='conv3_1', store=False)
+             .conv(3, 3, 256, 1, 1, name='conv3_2', store=False)
+             .conv(3, 3, 256, 1, 1, name='conv3_3', store=False)
+             .max_pool(2, 2, 2, 2, padding='SAME', name='pool3', store=False)
+             .conv(3, 3, 512, 1, 1, name='conv4_1', store=False)
+             .conv(3, 3, 512, 1, 1, name='conv4_2', store=False)
+             .conv(3, 3, 512, 1, 1, name='conv4_3', store=False)
+             .max_pool(2, 2, 2, 2, padding='SAME', name='pool4', store=False)
+             .conv(3, 3, 512, 1, 1, name='conv5_1', store=False)
+             .conv(3, 3, 512, 1, 1, name='conv5_2', store=False)
              .conv(3, 3, 512, 1, 1, name='conv5_3'))
         # ========= RPN ============
         # 在conv5_3中做滑动窗， 得到3×3×512的特征向量

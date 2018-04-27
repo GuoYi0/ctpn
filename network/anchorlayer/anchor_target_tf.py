@@ -110,7 +110,7 @@ def anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, hard_pos, hard_neg,
 
     # 困难正例对应的标签置为 1
     if len(hard_pos) > 2:
-        #TODO 这里不会报错，因为hard_neg[2:]是一个数组，故max_overlaps[hard_neg[2:]]即使只有一个对象，也是数组，
+        # TODO 这里不会报错，因为hard_neg[2:]是一个数组，故max_overlaps[hard_neg[2:]]即使只有一个对象，也是数组，
         assert all(max_overlaps[hard_neg[2:]] >= cfg.TRAIN.RPN_POSITIVE_OVERLAP)
         labels[hard_pos[2:]] = 1
 
