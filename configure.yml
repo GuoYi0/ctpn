@@ -1,5 +1,5 @@
 COMMON:
-  CKPT: E:/ctpn_yi/checkpoints/checkpoint
+  CKPT: E:/ctpn/checkpoints/checkpoint
   NUM_ANCHORS: 16
   INCREASE_BASE: 1.28
   MIN_ANCHOR_HEIGHT: 5
@@ -9,8 +9,8 @@ PREPARE:
 TRAIN:
   USE_FLIPPED: False
   USE_CACHED: False
-  CACHE_PATH: E:\ctpn_yi\dataset\cache
-  TRAIN_PATH: E:\ctpn_yi\dataset\for_train
+  CACHE_PATH: E:\ctpn\dataset\cache
+  TRAIN_PATH: E:\ctpn\dataset\for_train
   COORDINATE_NUM: 4
   IMS_BATCH_SIZE: 1  # 每轮图片的数目
   PIXEL_MEANS: [102.9801, 115.9465, 122.7717]
@@ -34,9 +34,9 @@ TRAIN:
   MAX_SCALE: 2200
 TEST:
   DETECT_MODE: "O" # 字符"O"表示检测倾斜的，字符"H"表示检测水平的
-  DATA_DIR: E:\ctpn_yi\dataset\for_test # 测试图片的存储路径
-  RESULT_DIR_PIC: E:\ctpn_yi\data\results\pic # 结果图片路径
-  RESULT_DIR_TXT: E:\ctpn_yi\data\results\gt_txt # 结果图片路径
+  DATA_DIR: E:\ctpn\dataset\for_test # 测试图片的存储路径
+  RESULT_DIR_PIC: E:\ctpn\results\pic # 结果图片路径
+  RESULT_DIR_TXT: E:\ctpn\results\gt_txt # 结果图片路径
   SCALE_BIG: 600  # 双模式测试，测试大文本缩放到小尺度
   MAX_SCALE_BIG: 900  # 双模式测试，测试小文本缩放到大尺度
   SCALE_SMALL: 2000  # 双模式测试，测试小文本缩放到大尺度
@@ -47,8 +47,8 @@ TEST:
   TEXT_PROPOSALS_WIDTH: 16
   MIN_NUM_PROPOSALS: 3 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
   MIN_RATIO: 0.5 # 文本的宽度除以高度的阈值
-  LINE_MIN_SCORE: 0.91 # 整个文本的分数阈值，，
-  TEXT_PROPOSALS_MIN_SCORE: 0.80 # 对于anchor而言，大于该分数就判定为正例
+  LINE_MIN_SCORE: 0.8 # 整个文本的分数阈值，，
+  TEXT_PROPOSALS_MIN_SCORE: 0.7 # 对于anchor而言，大于该分数就判定为正例
   MAX_HORIZONTAL_GAP: 50  # 水平片段大于该值的，就不连接在一起了
   MIN_V_OVERLAPS: 0.08  # y方向IOU大于该值的，就算相邻
   MIN_SIZE_SIM: 0.55  # y方向的相似度大于该值，就判定为相邻

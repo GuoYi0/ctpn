@@ -10,7 +10,7 @@ if __name__ == "__main__":
     # pprint.pprint(cfg)
     with tf.Graph().as_default() as g:
         # 获取测试网络， 一个空网络
-        with g.device('/cpu:0'):
+        with g.device('/gpu:0'):
             network = get_test_network(cfg)
             testclass = TestClass(cfg, network)
             testclass.test_net(g)

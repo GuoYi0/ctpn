@@ -29,16 +29,19 @@ class TextProposalGraphBuilder:
         x0 = (box[0]+box[2])/2
         y0 = (box[1]+box[3])/2
         results = []
+        height = abs(box[3]-box[1])+1
+        gap = height + 16
+        gap2 = gap**2
         # MAX_HORIZONTAL_GAP = 50, 水平距离不超过50个像素的文本片段有可能对应同一个文本
-        for left in range(int(box[0])+1, min(int(box[0])+self._cfg.TEST.MAX_HORIZONTAL_GAP+1, self.im_size[1])):
+        for left in range(int(box[0])+1, min(int(box[0])+gap, self.im_size[1])):
             # 取出x1=left的所有文本片段
             adj_box_indices = self.boxes_table[left]
             for adj_box_index in adj_box_indices:
                 x1 = (self.text_proposals[adj_box_index][0] + self.text_proposals[adj_box_index][2]) / 2
                 y1 = (self.text_proposals[adj_box_index][1] + self.text_proposals[adj_box_index][3]) / 2
-                dist1 = abs(x0 - x1) + abs(y0 - y1)
+                dist1 = (x0 - x1)**2 + abs(y0 - y1)**2
                 # 若这两个文本片段属于同一文本，则添加进results
-                if self.meet_v_iou(adj_box_index, index) and dist1 < self._cfg.TEST.MAX_HORIZONTAL_GAP:
+                if self.meet_v_iou(adj_box_index, index) and dist1 < gap2:
                     results.append(adj_box_index)
             if len(results) > 0:
                 return results
@@ -54,13 +57,16 @@ class TextProposalGraphBuilder:
         x0 = (box[0]+box[2])/2
         y0 = (box[1]+box[3])/2
         results = []
-        for left in range(int(box[0])-1, max(int(box[0]-self._cfg.TEST.MAX_HORIZONTAL_GAP), 0)-1, -1):
+        height = abs(box[3]-box[1])+1
+        gap = height + 16
+        gap2 = gap**2
+        for left in range(int(box[0])-1, max(int(box[0]-gap), 0)-1, -1):
             adj_box_indices = self.boxes_table[left]
             for adj_box_index in adj_box_indices:
                 x1 = (self.text_proposals[adj_box_index][0] + self.text_proposals[adj_box_index][2]) / 2
                 y1 = (self.text_proposals[adj_box_index][1] + self.text_proposals[adj_box_index][3]) / 2
-                dist1 = abs(x0 - x1) + abs(y0 - y1)
-                if self.meet_v_iou(adj_box_index, index) and dist1 < self._cfg.TEST.MAX_HORIZONTAL_GAP:
+                dist1 = (x0 - x1)**2 + abs(y0 - y1)**2
+                if self.meet_v_iou(adj_box_index, index) and dist1 < gap2:
                     results.append(adj_box_index)
 
             # if len(results) != 0:
