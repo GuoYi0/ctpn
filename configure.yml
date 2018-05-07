@@ -47,8 +47,8 @@ TEST:
   TEXT_PROPOSALS_WIDTH: 16
   MIN_NUM_PROPOSALS: 3 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
   MIN_RATIO: 0.5 # 文本的宽度除以高度的阈值
-  LINE_MIN_SCORE: 0.8 # 整个文本的分数阈值，，
-  TEXT_PROPOSALS_MIN_SCORE: 0.7 # 对于anchor而言，大于该分数就判定为正例
+  LINE_MIN_SCORE: 0.82 # 整个文本的分数阈值，，
+  TEXT_PROPOSALS_MIN_SCORE: 0.68 # 对于anchor而言，大于该分数就判定为正例
   MAX_HORIZONTAL_GAP: 50  # 水平片段大于该值的，就不连接在一起了
   MIN_V_OVERLAPS: 0.08  # y方向IOU大于该值的，就算相邻
   MIN_SIZE_SIM: 0.55  # y方向的相似度大于该值，就判定为相邻

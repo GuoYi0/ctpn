@@ -30,7 +30,7 @@ class TextProposalGraphBuilder:
         y0 = (box[1]+box[3])/2
         results = []
         height = abs(box[3]-box[1])+1
-        gap = height + 16
+        gap = min(height + 16, self._cfg.TEST.MAX_HORIZONTAL_GAP)
         gap2 = gap**2
         # MAX_HORIZONTAL_GAP = 50, 水平距离不超过50个像素的文本片段有可能对应同一个文本
         for left in range(int(box[0])+1, min(int(box[0]+gap), self.im_size[1])):
@@ -58,7 +58,7 @@ class TextProposalGraphBuilder:
         y0 = (box[1]+box[3])/2
         results = []
         height = abs(box[3]-box[1])+1
-        gap = height + 16
+        gap = min(height + 16, self._cfg.TEST.MAX_HORIZONTAL_GAP)
         gap2 = gap**2
         for left in range(int(box[0])-1, max(int(box[0]-gap), 0)-1, -1):
             adj_box_indices = self.boxes_table[left]
@@ -69,7 +69,6 @@ class TextProposalGraphBuilder:
                 if self.meet_v_iou(adj_box_index, index) and dist1 < gap2:
                     results.append(adj_box_index)
 
-            # if len(results) != 0:
             if len(results) > 0:
                 return results
         return results
