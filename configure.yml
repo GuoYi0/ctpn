@@ -43,7 +43,7 @@ TEST:
   MAX_SCALE_SMALL: 2600  # 双模式测试，测试大文本缩放到小尺度
   TEXT_THRESH_BIG: 50  #大于该值的，归为大文本
   TEXT_THRESH_SMALL: 60  # 小于该值的， 归为小文本
-  TEXT_NMS: 0.6 # 对整个文本框进行非极大值抑制的阈值
+  TEXT_NMS: 0.5 # 对整个文本框进行非极大值抑制的阈值
   TEXT_PROPOSALS_WIDTH: 16
   MIN_NUM_PROPOSALS: 3 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
   MIN_RATIO: 0.5 # 文本的宽度除以高度的阈值

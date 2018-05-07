@@ -278,9 +278,9 @@ class TestClass(object):
             except NoPositiveError:
                 print("Warning!!, get no region of interest in picture {}".format(im))
                 continue
-            # except:
-            #     print("the pic {} may has problems".format(im))
-            #     continue
+            except:
+                print("the pic {} may has problems".format(im))
+                continue
             # self.ctpn(sess, self._net, im_name)
 
             i += 1
