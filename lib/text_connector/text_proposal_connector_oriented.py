@@ -103,17 +103,43 @@ class TextProposalConnector:
             dx = np.fabs(l_hight * cos * sin)
             dy = np.fabs(l_hight * sin * sin)
 
-            # 以放大框框的方法来修正两边的便
+            # # 以放大框框的方法来修正两边的便
+            # if line[5] < 0:
+            #     x1 -= dx
+            #     y1 += dy
+            #     x4 += dx
+            #     y4 -= dy
+            # else:
+            #     x2 += dx
+            #     y2 += dy
+            #     x3 -= dx
+            #     y3 -= dy
+
+            # 以两边旁边中心坐标旋转，来修正两边
+            dx = dx/2
+            dy = dy/2
             if line[5] < 0:
                 x1 -= dx
                 y1 += dy
+                x3 += dx
+                y3 -= dy
+
                 x4 += dx
                 y4 -= dy
+                x2 -= dx
+                y2 += dy
+
             else:
                 x2 += dx
                 y2 += dy
+                x4 -= dx
+                y4 -= dy
+
                 x3 -= dx
                 y3 -= dy
+                x1 += dx
+                y1 += dy
+
             text_recs[index, 0] = x1
             text_recs[index, 1] = y1
             text_recs[index, 2] = x2
