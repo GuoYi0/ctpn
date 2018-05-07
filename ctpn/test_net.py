@@ -261,7 +261,7 @@ class TestClass(object):
                 raise 'Check your pretrained {:s}'.format(ckpt.model_checkpoint_path)
             print('done')
         else:
-            raise 'Check your pretrained {:s}'.format(self._cfg.TEST.RESULT_DIR)
+            raise 'Check your pretrained {}'.format(self._cfg.COMMON.CKPT)
 
         im_names = os.listdir(self._cfg.TEST.DATA_DIR)
 

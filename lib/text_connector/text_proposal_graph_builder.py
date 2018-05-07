@@ -33,7 +33,7 @@ class TextProposalGraphBuilder:
         gap = height + 16
         gap2 = gap**2
         # MAX_HORIZONTAL_GAP = 50, 水平距离不超过50个像素的文本片段有可能对应同一个文本
-        for left in range(int(box[0])+1, min(int(box[0])+gap, self.im_size[1])):
+        for left in range(int(box[0])+1, min(int(box[0]+gap), self.im_size[1])):
             # 取出x1=left的所有文本片段
             adj_box_indices = self.boxes_table[left]
             for adj_box_index in adj_box_indices:
