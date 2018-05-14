@@ -7,5 +7,6 @@ analysis/tmp/*
 analysis/.ipynb_checkpoints/*
 analysis/features.pkl
 checkpoints/*
-run/myTest.py
-results/*
+E:\\DLnet\\ctpn\\results
+E:\\DLnet\\ctpn\\run\\myTest.py
+E:\\DLnet\\ctpn\\dataset

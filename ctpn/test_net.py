@@ -29,7 +29,7 @@ class TestClass(object):
         base_name = os.path.basename(image_name)
         b_name, ext = os.path.splitext(base_name)
         if self._cfg.TEST.CONNECT:
-            with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'a') as f:
+            with open(os.path.join(self._cfg.TEST.RESULT_DIR_TXT, '{}.txt'.format(b_name)), 'w') as f:
                 for box in boxes:
                     # TODO 下面注释掉的这两行不知是啥意思
                     # if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3] - box[0]) < 5:
@@ -71,32 +71,61 @@ class TestClass(object):
             f = float(max_scale) / max(im.shape[0], im.shape[1])
         return cv2.resize(im, None, None, fx=f, fy=f, interpolation=cv2.INTER_LINEAR), f
 
-    def merge_y_anchor(self, scores, boxes):
+    def merge_y_anchor(self, boxes):
         """
-        该函数把大anchor，根据其在竖直方向的iou，进行合并
-        :param scores: N维向量，对应的分数
-        :param boxes: N×4矩阵，每行为一个已经映射回最初的图片的文字片段坐标
+        该函数的作用是在box层面，对竖直文本进行连接
+        :param boxes: 一个N×9的矩阵，表示N个拼接以后的完整的文本框。
+        每一行，前八个元素一次是左上，右上，左下，右下的坐标，最后一个元素是文本框的分数
         :return: 合并以后的anchor和分数
         """
-        length = len(scores)
-        height = boxes[:, 3] - boxes[:, 1] + 1
-        for i in range(length):
-            if height[i] > self._cfg.TEST.BIG_THRESH and scores[i] > 0:
-                x1 = boxes[i, 0]
-                for j in range(i+1, length):
-                    if height[j] > self._cfg.TEST.BIG_THRESH and scores[j] > 0 and abs(boxes[j, 0]-x1) < 2:
+        height = (abs(boxes[:, 5] - boxes[:, 1])+ abs(boxes[:, 7]  - boxes[:, 3])) / 2 + 1
+        width = (abs(boxes[:, 2] - boxes[:, 0])+ abs(boxes[:, 6]  - boxes[:, 4])) / 2 + 1
 
-                        y0 = max(boxes[i, 1], boxes[j, 1])
-                        y1 = min(boxes[i, 3], boxes[j, 3])
-                        # y方向的IOU
-                        y_iou = (y1 - y0 + 1) / (height[i] + height[j] - (y1 - y0 + 1))
-                        if y_iou > self._cfg.TEST.BIG_IOU:
+        square_ratio = height / width
+        square_inds = np.where(self._cfg.TEST.SQUARE_THRESH < square_ratio)[0]
+
+        for ind, i in enumerate(square_inds[:-1]):
+            if boxes[i, 8] > 0:
+                # i号框框的x坐标，取为四个x的中心坐标
+                x_i = (boxes[i, 0] + boxes[i, 2] + boxes[i, 4] + boxes[i, 6])/4
+                # i号框框的上边y坐标和下边y坐标
+                yi_up = (boxes[i, 1] + boxes[i, 3])/2
+                yi_down = (boxes[i, 5] + boxes[i, 7])/2
+                for j in square_inds[ind+1:]:
+                    if boxes[j, 8] > 0 and abs((boxes[j, 0] + boxes[j, 2] + boxes[j, 4] + boxes[j, 6])/4 - x_i) \
+                            < (width[i] + width[j])/2 and min(width[i], width[j])/max(width[i], width[j]) \
+                            > self._cfg.TEST.MIN_SIZE_SIM:
+                    # if boxes[j, 8] > 0:
+                        # j号框框的上边y坐标和下边y坐标
+                        yj_up = (boxes[j, 1] + boxes[j, 3]) / 2
+                        yj_down = (boxes[j, 5] + boxes[j, 7]) / 2
+                        # y方向的差值
+                        y_gap = min(abs(yi_down - yj_up), abs(yj_down - yi_up))
+                        if y_gap < (width[i]+width[j])*2:
+
+                            boxes[i, 0] = boxes[i, 0]*0.7 + boxes[j, 0]*0.3
                             boxes[i, 1] = min(boxes[i, 1], boxes[j, 1])
-                            boxes[i, 3] = max(boxes[i, 3], boxes[j, 3])
-                            scores[i] = (scores[i]+scores[j])/2
-                            scores[j] = -1.0
-        valid_inds = np.where(scores > 0)[0]
-        return scores[valid_inds], boxes[valid_inds]
+
+                            boxes[i, 2] = boxes[i, 2]*0.7 + boxes[j, 2]*0.3
+                            boxes[i, 3] = min(boxes[i, 3], boxes[j, 3])
+
+                            boxes[i, 4] = boxes[i, 4]*0.7 + boxes[j, 4]*0.3
+                            boxes[i, 5] = max(boxes[i, 5], boxes[j, 5])
+
+                            boxes[i, 6] = boxes[i, 6]*0.7 + boxes[j, 6]*0.3
+                            boxes[i, 7] = max(boxes[i, 7], boxes[j, 7])
+
+                            boxes[i, 8] = boxes[i, 8]*0.7 + boxes[j, 8]*0.3
+                            boxes[j, 8] = -1.0
+
+                            # 更新i号框框的参数值
+                            yi_up = (boxes[i, 1] + boxes[i, 3]) / 2
+                            yi_down = (boxes[i, 5] + boxes[i, 7]) / 2
+                            width[i] = width[i]*0.7 + width[j]*0.3
+                            # height[i] = height[i]*0.7 + height[j]*0.3
+
+        valid_inds = np.where(boxes[:, 8] > 0)[0]
+        return boxes[valid_inds]
 
     def box_nms(self, boxes):
         length = boxes.shape[0]
@@ -125,10 +154,10 @@ class TestClass(object):
                             boxes[small_ind, 8] = -1.0
                             if small_ind == i:
                                 break
-        # valid_inds = np.where(boxes[:, 8] > 0)[0]
+        valid_inds = np.where(boxes[:, 8] > 0)[0]
 
-        # return boxes[valid_inds, :]
-        return boxes
+        return boxes[valid_inds, :]
+        # return boxes
 
     # 被test_net()调用
     def ctpn(self, sess, net, image_name):
@@ -144,25 +173,29 @@ class TestClass(object):
         # 将一张图片缩放成两个尺寸，其中大尺寸检查小的文本，小尺寸检查大的文本
         # boxes是缩放回原图的坐标
         boxes_big = self.get_boxes(sess, net, image, mode="big")
-        len_big = boxes_big.shape[0]
+        # len_big = boxes_big.shape[0]
         boxes_small = self.get_boxes(sess, net, image, mode="small")
         boxes = np.concatenate((boxes_big, boxes_small), axis=0)
 
         boxes_nms = self.box_nms(boxes)  # 对文本框进行非极大值抑制
 
-        # self.draw_boxes(image, image_name, boxes_nms, (0, 0, 255))
+        if self._cfg.TEST.BIG_CONNECT:
+            boxes_nms = self.merge_y_anchor(boxes_nms)
+            boxes_nms = self.box_nms(boxes_nms)
 
-        boxes_big = boxes_nms[:len_big]
-        boxes_small = boxes_nms[len_big:]
-
-        valid_inds = np.where(boxes_big[:, 8] > 0)[0]
-        boxes_big = boxes_big[valid_inds]
-
-        valid_inds = np.where(boxes_small[:, 8] > 0)[0]
-        boxes_small = boxes_small[valid_inds]
-
-        self.draw_boxes(image, image_name, boxes_big, (0, 0, 255))
-        self.draw_boxes(image, image_name, boxes_small, (0, 255, 0))
+        self.draw_boxes(image, image_name, boxes_nms, (0, 0, 255))
+        #
+        # boxes_big = boxes_nms[:len_big]
+        # boxes_small = boxes_nms[len_big:]
+        #
+        # valid_inds = np.where(boxes_big[:, 8] > 0)[0]
+        # boxes_big = boxes_big[valid_inds]
+        #
+        # valid_inds = np.where(boxes_small[:, 8] > 0)[0]
+        # boxes_small = boxes_small[valid_inds]
+        #
+        # self.draw_boxes(image, image_name, boxes_big, (0, 0, 255))
+        # self.draw_boxes(image, image_name, boxes_small, (0, 255, 0))
 
         base_name = os.path.basename(image_name)
         cv2.imwrite(os.path.join(self._cfg.TEST.RESULT_DIR_PIC, base_name), image)
@@ -209,8 +242,7 @@ class TestClass(object):
         # valid_len=len(scores)
         # assert valid_len>0,"no valid anchor"
 
-        if self._cfg.TEST.BIG_CONNECT:
-            scores, boxes = self.merge_y_anchor(scores, boxes)
+
         if self._cfg.TEST.CONNECT:
             # 此处调用了一个文本检测器
             textdetector = TextDetector(self._cfg)

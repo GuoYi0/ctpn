@@ -8,9 +8,9 @@ PREPARE:
   SLOP_THRESHOLD: 1
 TRAIN:
   USE_FLIPPED: False
-  USE_CACHED: False
-  CACHE_PATH: E:/DLnet\ctpn\dataset\cache
-  TRAIN_PATH: E:/DLnet\ctpn\dataset\for_train
+  USE_CACHED: True
+  CACHE_PATH: dataset/cache
+  TRAIN_PATH: dataset/for_train
   COORDINATE_NUM: 4
   IMS_BATCH_SIZE: 1  # 每轮图片的数目
   PIXEL_MEANS: [102.9801, 115.9465, 122.7717]
@@ -18,25 +18,23 @@ TRAIN:
   WEIGHT_DECAY: 0.0005 #正则化项的系数
   RPN_NEGATIVE_OVERLAP: 0.3
   RPN_POSITIVE_OVERLAP: 0.7
-  RPN_FG_FRACTION: 0.25
-  RPN_BATCHSIZE: 3000000000000
+  RPN_FG_FRACTION: 0.3
+  RPN_BATCHSIZE: 1000
   OHEM: False
-  LEARNING_RATE: 0.0001
+  LEARNING_RATE: 0.00001
   SOLVER: "Momentum"
   MOMENTUM: 0.9
-  STEPSIZE: 14000
+  STEPSIZE: 30000
   GAMMA: 0.1
   DISPLAY: 10
-  MAX_ITER: 100000
-  SNAPSHOT_ITERS: 1000
+  MAX_ITER: 256816
+  SNAPSHOT_ITERS: 100
   RANDOM_DOWNSAMPLE: Ture
   SCALE: 1600
   MAX_SCALE: 2200
 TEST:
   DETECT_MODE: "O" # 字符"O"表示检测倾斜的，字符"H"表示检测水平的
-#  DATA_DIR: E:\shuzhi2
-  DATA_DIR: D:\icpr_mtwi_task2\image_test # 测试图片的存储路径
-
+  DATA_DIR: E:/DLnet\ctpn\dataset\for_test # 测试图片的存储路径
   RESULT_DIR_PIC: E:/DLnet\ctpn\results\pic # 结果图片路径
   RESULT_DIR_TXT: E:/DLnet\ctpn\results\gt_txt # 结果图片路径
   SCALE_BIG: 600  # 双模式测试，测试大文本缩放到小尺度
@@ -47,21 +45,22 @@ TEST:
   TEXT_THRESH_SMALL: 60  # 小于该值的， 归为小文本
   TEXT_NMS: 0.5 # 对整个文本框进行非极大值抑制的阈值
   TEXT_PROPOSALS_WIDTH: 16
-  MIN_NUM_PROPOSALS: 1 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
-  MIN_RATIO: 0.1 # 文本的宽度除以高度的阈值
-  LINE_MIN_SCORE: 0.8 # 整个文本的分数阈值，，
-  TEXT_PROPOSALS_MIN_SCORE: 0.62 # 对于anchor而言，大于该分数就判定为正例
+  MIN_NUM_PROPOSALS: 3 # 文本的宽度最小由几个片段构成，乘以TEXT_PROPOSALS_WIDTH，则表示最小由几个像素构成
+  MIN_RATIO: 0.5 # 文本的宽度除以高度的阈值
+  LINE_MIN_SCORE: 0.85 # 整个文本的分数阈值，，
+  TEXT_PROPOSALS_MIN_SCORE: 0.70 # 对于anchor而言，大于该分数就判定为正例
   MAX_HORIZONTAL_GAP: 50  # 水平片段大于该值的，就不连接在一起了
-  MIN_V_OVERLAPS: 0.08  # y方向IOU大于该值的，就算相邻，调为0.04会导致降低f_score降低0.4分
-  MIN_SIZE_SIM: 0.6  # y方向的相似度大于该值，就判定为相邻
-  RPN_NMS_THRESH: 0.08  # 非极大值抑制的阈值，y_iou大于该阈值，0.08时53.1分，就会被抑制掉, 改为0.15会使得分数为52.958分
+  MIN_V_OVERLAPS: 0.08  # y方向IOU大于该值的，就算相邻
+  MIN_SIZE_SIM: 0.52  # y方向的相似度大于该值，就判定为相邻
+  RPN_PRE_NMS_TOP_N: 12000
+  RPN_POST_NMS_TOP_N: 2000
+  RPN_NMS_THRESH: 0.08  # 非极大值抑制的阈值，y_iou大于该阈值，就会被抑制掉
   RPN_MIN_SIZE: 16
   RATIO: 5 # 在连接的时候，以分数和y_iou共同作为评判标准，分数的系数是1，该值反映y_iou的占比
   CONNECT: True  # 要不要把所有anchor连接起来输出
   NMS_RATIO: 2.6  # 在进行非极大值抑制的时候，小文本的阈值要调高一点，大文本阈值要调低一点。用该值控制，他需要大于1
   # 当anchor高度为256时， 阈值为RPN_NMS_THRESH；当anchor高度为2时，阈值是RPN_NMS_THRESH*RATIO，线性变化
-  BIG_CONNECT: True  # 如果是True，就连接竖直文本
-  SQUARE_THRESH: 0.6  # 正方形的阈值，一个框框的短边除以长边的值若大于该值，就判定为正方形
+  BIG_CONNECT: False  # 如果是True，就把在同一高度的大anchor连接起来
   BIG_THRESH: 80  # 大于该值的anchor才进行高度连接
   BIG_IOU: 0.01  # 大anchor连接的iou阈值，大于该值的，就合并。该阈值必须小于RPN_NMS_THRESH
 

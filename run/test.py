@@ -14,5 +14,5 @@ if __name__ == "__main__":
             network = get_test_network(cfg)
             testclass = TestClass(cfg, network)
             testclass.test_net(g)
-    evaluate()
+    # evaluate()
 
